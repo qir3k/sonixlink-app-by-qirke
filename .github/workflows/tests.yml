@@ -43,15 +43,4 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build debug APK
-        run: |
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
-
-      - name: Report build log
-        if: always()
-        run: |
-          if [ -f build.log ]; then
-            echo "### Build Log Output" >> "$GITHUB_STEP_SUMMARY"
-            echo '```text' >> "$GITHUB_STEP_SUMMARY"
-            tail -n 120 build.log >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          fi
+        run: ./gradlew assembleDebug --no-daemon --stacktrace

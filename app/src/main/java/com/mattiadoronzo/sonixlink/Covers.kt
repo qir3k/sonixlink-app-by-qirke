@@ -462,8 +462,8 @@ class Covers(context: Context) {
                     if (slowLink) Thread.sleep(SLOW_PAUSE_MS)
                 }
             } else if (artTask != null) {
+                val task = artTask!!
                 val fetchArt = artSource
-                val task = artTask
                 val bytes = try {
                     fetchArt?.invoke(task.path)
                 } catch (e: Exception) {
