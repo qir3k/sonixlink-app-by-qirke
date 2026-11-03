@@ -1,4 +1,4 @@
-# SonixLink — TempoTec V1 fork
+# SonixLink App for TempoTec Variations V1 (by qirke)
 
 An Android app that drives **Sonix Player** on the **TempoTec V1** from your phone,
 and browses its library.
