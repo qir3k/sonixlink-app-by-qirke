@@ -299,8 +299,8 @@ class RowAdapter(
             covers == null -> null
             // A track has its own thumbnail only once the player has drawn
             // that row; until then the album's cover stands in.
-            row.isTrack -> covers.forTrack(row.artPath, row.artMtime, row.artSize)
-                ?: covers.forAlbum(row.album)
+            row.isTrack -> covers.forTrack(row.artPath, row.artMtime, row.artSize, row.album)
+                ?: if (row.album.isNotEmpty()) covers.forAlbum(row.album) else null
             row.album.isNotEmpty() -> covers.forAlbum(row.album)
             else -> null
         }

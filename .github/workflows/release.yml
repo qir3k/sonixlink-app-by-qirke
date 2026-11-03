@@ -1,0 +1,206 @@
+name: Release SonixLink APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_ref:
+        description: Ref to build (branch, tag or commit). Empty builds the ref this was dispatched from.
+        required: false
+        type: string
+      publish_release_tag:
+        description: Release tag to upload the built APK to. Empty publishes under the bumped tag.
+        required: false
+        type: string
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Build and publish release APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.build_ref || github.sha }}
+          fetch-depth: 0
+
+      - name: Record the revision being built
+        id: source
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          subject="$(git log -1 --format=%s)"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Building $sha"
+          echo "  $subject"
+          {
+            echo "### Built revision"
+            echo '```'
+            echo "$sha  $subject"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Bump the version for a release
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CUSTOM_TAG: ${{ inputs.publish_release_tag }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, subprocess, sys
+
+          custom_tag = os.environ.get("CUSTOM_TAG", "").strip()
+          subprocess.run(["git", "fetch", "--tags"], check=False)
+          tag_lines = subprocess.check_output(
+              ["git", "tag", "-l", "v[0-9]*.[0-9]*.[0-9]*", "--sort=-v:refname"],
+              text=True
+          ).splitlines()
+
+          old_tag = tag_lines[0] if tag_lines else "v1.2.0"
+          m = re.match(r"^v(\d+)\.(\d+)\.(\d+)$", old_tag)
+          if m:
+              major, minor, patch = int(m.group(1)), int(m.group(2)), int(m.group(3))
+          else:
+              major, minor, patch = 1, 2, 0
+              old_tag = "v1.2.0"
+
+          head_tags = subprocess.check_output(
+              ["git", "tag", "--points-at", "HEAD", "v[0-9]*.[0-9]*.[0-9]*"],
+              text=True
+          ).splitlines()
+
+          if custom_tag:
+              new_tag = custom_tag
+              print(f"Using custom release tag: {new_tag}")
+          elif head_tags:
+              new_tag = head_tags[0]
+              other_tags = [t for t in tag_lines if t not in head_tags]
+              old_tag = other_tags[0] if other_tags else "v1.2.0"
+              print(f"HEAD is already tagged: {new_tag}, comparing against {old_tag}")
+          else:
+              commit_msg = subprocess.check_output(["git", "log", "-1", "--pretty=%B"], text=True)
+
+              if "#major" in commit_msg:
+                  major += 1
+                  minor = 0
+                  patch = 0
+              elif "#minor" in commit_msg:
+                  minor += 1
+                  patch = 0
+              else:
+                  if patch >= 50:
+                      minor += 1
+                      patch = 0
+                  else:
+                      patch += 1
+
+              new_tag = f"v{major}.{minor}.{patch}"
+              print(f"Bumping version: {old_tag} -> {new_tag}")
+
+              subprocess.check_call(["git", "config", "user.name", "github-actions[bot]"])
+              subprocess.check_call(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"])
+              subprocess.check_call(["git", "tag", new_tag])
+
+              token = os.environ.get("GH_TOKEN", "")
+              repo = os.environ.get("GITHUB_REPOSITORY", "")
+              if token and repo:
+                  push_url = f"https://x-access-token:{token}@github.com/{repo}.git"
+                  subprocess.check_call(["git", "push", push_url, new_tag])
+              else:
+                  subprocess.check_call(["git", "push", "origin", new_tag])
+
+          gh_out = os.environ.get("GITHUB_OUTPUT")
+          if gh_out:
+              with open(gh_out, "a") as f:
+                  f.write(f"new_tag={new_tag}\n")
+                  f.write(f"old_tag={old_tag}\n")
+                  f.write(f"tag={new_tag}\n")
+          PY
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Stamp version into app build
+        env:
+          TAG: ${{ steps.version.outputs.new_tag }}
+        run: |
+          ver="${TAG#v}"
+          echo "Updating versionName to $ver"
+          sed -i "s/versionName = .*/versionName = \"$ver\"/" app/build.gradle.kts
+
+      - name: Assemble Release APK
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Prepare Release Artifacts
+        env:
+          TAG: ${{ steps.version.outputs.new_tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          apk_path="$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)"
+          if [ -z "$apk_path" ] || [ ! -f "$apk_path" ]; then
+            echo "::error::Release APK not found in app/build/outputs/apk/release"
+            exit 1
+          fi
+          echo "Found APK: $apk_path"
+          cp "$apk_path" "dist/sonixlink-${TAG}.apk"
+          cp "$apk_path" "dist/sonixlink-release.apk"
+          cd dist
+          sha256sum "sonixlink-${TAG}.apk" > "sonixlink-${TAG}.apk.sha256"
+          cd ..
+          ls -la dist
+
+      - name: Write Release Notes
+        env:
+          OLD_TAG: ${{ steps.version.outputs.old_tag }}
+          NEW_TAG: ${{ steps.version.outputs.new_tag }}
+        run: |
+          set -euo pipefail
+          if git rev-parse -q --verify "refs/tags/${OLD_TAG}^{commit}" >/dev/null; then
+            range="${OLD_TAG}..${NEW_TAG}"
+          elif git rev-parse -q --verify refs/remotes/origin/main >/dev/null; then
+            range="origin/main..${NEW_TAG}"
+          else
+            range="${NEW_TAG} -n 20"
+          fi
+          {
+            echo "## SonixLink ${NEW_TAG}"
+            echo
+            echo "### Changes since ${OLD_TAG}:"
+            echo
+            git log --no-merges --invert-grep --grep='^ci:' --pretty='- %s (`%h`)' $range || true
+            echo
+            echo "---"
+            echo "Built from \`$(git rev-parse --short "${NEW_TAG}^{commit}")\` on the \`main\` branch."
+          } > "$RUNNER_TEMP/release-notes.md"
+          cat "$RUNNER_TEMP/release-notes.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.new_tag }}
+          target_commitish: ${{ steps.source.outputs.sha }}
+          body_path: ${{ runner.temp }}/release-notes.md
+          files: |
+            dist/sonixlink-*.apk
+            dist/sonixlink-*.sha256
+          fail_on_unmatched_files: true

@@ -118,6 +118,11 @@ class MainActivity : AppCompatActivity() {
         }
         client = PlayerClient(host, port)
         Session.client = client
+        Session.covers?.let { c ->
+            c.source = { keys -> client.thumbs(keys) }
+            c.artSource = { path -> try { client.artwork(path, 0) } catch (e: Exception) { null } }
+            c.slowLink = client.isBluetooth
+        }
 
         // The service keeps the heartbeat and the notification running while
         // this screen is in the background.

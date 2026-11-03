@@ -143,6 +143,7 @@ class SyncActivity : AppCompatActivity() {
         withContext(Dispatchers.IO) { covers.open() }
         val fetchWith = client
         covers.source = { keys -> fetchWith.thumbs(keys) }
+        covers.artSource = { path -> try { fetchWith.artwork(path, 0) } catch (e: Exception) { null } }
         covers.slowLink = fetchWith.isBluetooth
 
         val (stampOwner, stampVersion) = withContext(Dispatchers.IO) { Settings.coversStamp(this@SyncActivity) }
