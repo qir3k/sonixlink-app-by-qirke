@@ -6,9 +6,9 @@
     <string name="connect_failed">Немає відповіді: %1$s</string>
     <string name="connect_bluetooth">Підключитися через Bluetooth</string>
     <string name="bluetooth_pick">Спарені пристрої</string>
-    <string name="bluetooth_none">Немає спарених пристроїв. Увімкніть Bluetooth і SonixLink на плеєрі, а потім з'єднайте його в налаштуваннях Bluetooth телефону.</string>
+<string name="bluetooth_none">Немає спарених пристроїв. Увімкніть Bluetooth і SonixLink на плеєрі, а потім з\'єднайте його в налаштуваннях Bluetooth телефону.</string>
     <string name="bluetooth_off">Bluetooth на телефоні вимкнено.</string>
-    <string name="bluetooth_denied">Без дозволу на Bluetooth додаток не може з'єднатися з плеєром.</string>
+<string name="bluetooth_denied">Без дозволу на Bluetooth додаток не може з\'єднатися з плеєром.</string>
 
     <string name="crash_title">Додаток завершив роботу</string>
     <string name="crash_copy">Копіювати</string>

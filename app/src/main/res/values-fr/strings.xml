@@ -101,11 +101,11 @@
     <string name="cd_back">Retour</string>
     <string name="cd_close">Fermer</string>
     <string name="volume_label">Volume %1$d</string>
-<string name="action_accent">Couleur d'accent</string>
+<string name="action_accent">Couleur d\'accent</string>
     <string name="action_language">Langue</string>
     <string name="language_title">Choisir la langue</string>
     <string name="language_system">Langue du système</string>
-    <string name="accent_title">Couleur d'accent</string>
+<string name="accent_title">Couleur d\'accent</string>
     <string name="accent_from_player">Du lecteur (par défaut)</string>
     <string name="accent_blue">Bleu</string>
     <string name="accent_red">Rouge</string>
