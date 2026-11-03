@@ -115,6 +115,8 @@ class BrowseFragment : Fragment(), MainActivity.LibraryListener {
         adapter.playing = Session.state
         binding.list.layoutManager = LinearLayoutManager(requireContext())
         binding.list.adapter = adapter
+        binding.list.itemAnimator = null
+        binding.list.setHasFixedSize(true)
         binding.headerBack.setOnClickListener { back.handleOnBackPressed() }
         binding.playMenu.setOnClickListener { showPlayMenu() }
         binding.selClose.setOnClickListener { stopSelection() }

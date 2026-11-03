@@ -23,11 +23,21 @@ class RowAdapter(
     private companion object {
         const val TYPE_ROW = 0
         const val TYPE_HEADER = 1
+        const val PAYLOAD_COVER = 1
     }
 
     enum class Leading { ICON, NONE }
 
     private val items = ArrayList<Row>()
+    private var rippleResId = 0
+    private fun getRippleRes(context: android.content.Context): Int {
+        if (rippleResId == 0) {
+            val ripple = android.util.TypedValue()
+            context.theme.resolveAttribute(android.R.attr.selectableItemBackground, ripple, true)
+            rippleResId = ripple.resourceId
+        }
+        return rippleResId
+    }
 
     /** The row at [position], or null when out of range. */
     fun rowAt(position: Int): Row? = items.getOrNull(position)
@@ -208,17 +218,92 @@ class RowAdapter(
         notifyDataSetChanged()
     }
 
-    /** Rebinds all rows when thumbnails arrive from the player. */
-    private val coversArrived: () -> Unit = { notifyItemRangeChanged(0, items.size) }
+    private val coversHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var coversPending = false
+    private var attachedRecyclerView: RecyclerView? = null
+
+    private val updateCoversRunnable = Runnable {
+        coversPending = false
+        val rv = attachedRecyclerView ?: return@Runnable
+        val lm = rv.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager
+        if (lm != null) {
+            val first = lm.findFirstVisibleItemPosition()
+            val last = lm.findLastVisibleItemPosition()
+            if (first != RecyclerView.NO_POSITION && last != RecyclerView.NO_POSITION && last >= first) {
+                val count = (last - first + 1).coerceAtMost(items.size - first)
+                notifyItemRangeChanged(first, count, PAYLOAD_COVER)
+                return@Runnable
+            }
+        }
+        notifyItemRangeChanged(0, items.size, PAYLOAD_COVER)
+    }
+
+    /** Rebinds visible rows when thumbnails arrive from the player. */
+    private val coversArrived: () -> Unit = {
+        if (!coversPending) {
+            coversPending = true
+            coversHandler.postDelayed(updateCoversRunnable, 80)
+        }
+    }
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
+        attachedRecyclerView = recyclerView
         Covers.watch(coversArrived)
     }
 
     override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
         super.onDetachedFromRecyclerView(recyclerView)
+        coversHandler.removeCallbacks(updateCoversRunnable)
+        coversPending = false
+        attachedRecyclerView = null
         Covers.unwatch(coversArrived)
+    }
+
+    override fun onBindViewHolder(
+        holder: RecyclerView.ViewHolder,
+        position: Int,
+        payloads: MutableList<Any>
+    ) {
+        if (payloads.contains(PAYLOAD_COVER) && holder is Holder) {
+            if (position in items.indices) {
+                bindCover(holder, items[position])
+            }
+            return
+        }
+        super.onBindViewHolder(holder, position, payloads)
+    }
+
+    private fun bindCover(holder: Holder, row: Row) {
+        val views = holder.views
+        val covers = Session.covers
+        val cover = when {
+            covers == null -> null
+            row.isTrack -> covers.forTrack(row.artPath, row.artMtime, row.artSize, row.album)
+                ?: if (row.album.isNotEmpty()) covers.forAlbum(row.album) else null
+            row.album.isNotEmpty() -> covers.forAlbum(row.album)
+            else -> null
+        }
+        if (cover != null) {
+            views.cover.setImageBitmap(cover)
+            views.cover.drawable?.isFilterBitmap = true
+            views.cover.drawable?.setDither(true)
+            views.cover.visibility = View.VISIBLE
+            views.icon.visibility = View.GONE
+            views.artwork.visibility = View.VISIBLE
+        } else {
+            views.cover.setImageDrawable(null)
+            views.cover.visibility = View.GONE
+            views.icon.visibility = if (leading == Leading.ICON) View.VISIBLE else View.GONE
+            views.icon.setImageResource(
+                when {
+                    row.iconRes != 0 -> row.iconRes
+                    row.isTrack -> R.drawable.ic_track
+                    else -> categoryIcon
+                }
+            )
+            views.artwork.visibility = if (leading == Leading.ICON) View.VISIBLE else View.GONE
+        }
     }
 
     class Holder(val views: RowItemBinding) : RecyclerView.ViewHolder(views.root)
@@ -287,44 +372,10 @@ class RowAdapter(
             )
         } else {
             // Back to the ripple the layout gives it.
-            val ripple = android.util.TypedValue()
-            context.theme.resolveAttribute(android.R.attr.selectableItemBackground, ripple, true)
-            views.root.setBackgroundResource(ripple.resourceId)
+            views.root.setBackgroundResource(getRippleRes(context))
         }
 
-        // Read on the main thread: a thumbnail is raw pixels behind a
-        // primary-key query, with no decoding.
-        val covers = Session.covers
-        val cover = when {
-            covers == null -> null
-            // A track has its own thumbnail only once the player has drawn
-            // that row; until then the album's cover stands in.
-            row.isTrack -> covers.forTrack(row.artPath, row.artMtime, row.artSize, row.album)
-                ?: if (row.album.isNotEmpty()) covers.forAlbum(row.album) else null
-            row.album.isNotEmpty() -> covers.forAlbum(row.album)
-            else -> null
-        }
-        if (cover != null) {
-            views.cover.setImageBitmap(cover)
-            views.cover.visibility = View.VISIBLE
-            views.icon.visibility = View.GONE
-            views.artwork.visibility = View.VISIBLE
-        } else {
-            views.cover.setImageDrawable(null)
-            views.cover.visibility = View.GONE
-            views.icon.visibility = if (leading == Leading.ICON) View.VISIBLE else View.GONE
-            views.icon.setImageResource(
-                when {
-                    // Lists that mix kinds, like search results, set the icon per row.
-                    row.iconRes != 0 -> row.iconRes
-                    row.isTrack -> R.drawable.ic_track
-                    else -> categoryIcon
-                }
-            )
-            // With neither artwork nor icon the square goes too, and the title
-            // starts at the margin.
-            views.artwork.visibility = if (leading == Leading.ICON) View.VISIBLE else View.GONE
-        }
+        bindCover(holder, row)
 
         val subtitle = when {
             row.subtitle.isNotEmpty() -> row.subtitle

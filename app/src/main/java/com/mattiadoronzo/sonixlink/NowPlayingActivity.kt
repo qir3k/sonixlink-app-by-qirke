@@ -512,6 +512,8 @@ class NowPlayingActivity : AppCompatActivity() {
             }
             artPath = path
             views.cover.setImageBitmap(pair.first)
+            views.cover.drawable?.isFilterBitmap = true
+            views.cover.drawable?.setDither(true)
             views.backdrop.setImageBitmap(pair.second)
             views.coverPlaceholder.visibility = View.GONE
         }

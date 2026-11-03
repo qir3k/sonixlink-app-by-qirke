@@ -195,7 +195,8 @@ class QueueActivity : AppCompatActivity() {
         views.list.adapter = adapter
         // A row rebound while it is carried (a thumbnail arriving) would get a
         // new holder, and the drag would lose it.
-        (views.list.itemAnimator as? androidx.recyclerview.widget.SimpleItemAnimator)?.supportsChangeAnimations = false
+        views.list.itemAnimator = null
+        views.list.setHasFixedSize(true)
         touch = ItemTouchHelper(DragCallback())
         touch.attachToRecyclerView(views.list)
 

@@ -383,19 +383,20 @@ class MainActivity : AppCompatActivity() {
         val side = (48 * resources.displayMetrics.density).toInt().coerceAtLeast(48)
         lifecycleScope.launch {
             val bitmap = withContext(Dispatchers.IO) {
-                val row = Session.library?.tracksByPaths(listOf(path))?.get(path)
-                val thumb = row?.let {
-                    Session.covers?.forTrack(it.artPath, it.artMtime, it.artSize)
-                        ?: Session.covers?.forAlbum(it.album)
+                smallArtwork(path, side) ?: run {
+                    val row = Session.library?.tracksByPaths(listOf(path))?.get(path)
+                    row?.let {
+                        Session.covers?.forTrack(it.artPath, it.artMtime, it.artSize)
+                            ?: Session.covers?.forAlbum(it.album)
+                    }
                 }
-                // Tracks without a list thumbnail fall back to the full cover
-                // from Artwork, which is often already cached.
-                thumb ?: smallArtwork(path, side)
             }
             // Drop the result if the track changed during the lookup.
             if (coverPath != path) return@launch
             if (bitmap != null) {
                 views.nowCover.setImageBitmap(bitmap)
+                views.nowCover.drawable?.isFilterBitmap = true
+                views.nowCover.drawable?.setDither(true)
                 views.nowCover.visibility = View.VISIBLE
             } else {
                 // INVISIBLE rather than GONE keeps the title from shifting left.

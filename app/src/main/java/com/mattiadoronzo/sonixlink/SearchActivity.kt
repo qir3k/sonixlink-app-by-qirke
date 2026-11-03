@@ -102,6 +102,8 @@ class SearchActivity : AppCompatActivity() {
         adapter.marksCategory = Playmark::byIcon
         views.list.layoutManager = LinearLayoutManager(this)
         views.list.adapter = adapter
+        views.list.itemAnimator = null
+        views.list.setHasFixedSize(true)
 
         views.backButton.setOnClickListener { finish() }
         views.headerBack.setOnClickListener { closeCategory() }

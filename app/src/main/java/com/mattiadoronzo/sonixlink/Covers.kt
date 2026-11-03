@@ -63,11 +63,11 @@ class Covers(context: Context) {
         fun candidateKeys(path: String, mtime: Long, size: Long, isDir: Boolean = false): List<String> {
             val list = ArrayList<String>(4)
             val isWav = isDir || path.endsWith(".wav", ignoreCase = true)
-            list.add(key(path, mtime, size, box = BOX_V1, isDir = isDir, epoch = false))
             list.add(key(path, mtime, size, box = BOX, isDir = isDir, epoch = false))
+            list.add(key(path, mtime, size, box = BOX_V1, isDir = isDir, epoch = false))
             if (isWav) {
-                list.add(key(path, mtime, size, box = BOX_V1, isDir = isDir, epoch = true))
                 list.add(key(path, mtime, size, box = BOX, isDir = isDir, epoch = true))
+                list.add(key(path, mtime, size, box = BOX_V1, isDir = isDir, epoch = true))
             }
             return list
         }
@@ -361,6 +361,16 @@ class Covers(context: Context) {
         if (w <= 0 || h <= 0 || pixels == null || pixels.size < w * h * 2) return null
         val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.RGB_565)
         bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(pixels, 0, w * h * 2))
+        if (w < 120 && h < 120) {
+            val scale = (120f / maxOf(w, h)).coerceAtLeast(1f)
+            val targetW = (w * scale).toInt()
+            val targetH = (h * scale).toInt()
+            val scaled = Bitmap.createScaledBitmap(bitmap, targetW, targetH, true)
+            if (scaled != bitmap) {
+                bitmap.recycle()
+            }
+            return scaled
+        }
         return bitmap
     }
 
@@ -474,7 +484,7 @@ class Covers(context: Context) {
                 synchronized(gate) {
                     artInFlight.remove(task.path)
                     if (bytes != null && bytes.isNotEmpty()) {
-                        val bitmap = decodeThumbnail(bytes, 144)
+                        val bitmap = decodeThumbnail(bytes, 256)
                         if (bitmap != null) {
                             storeBitmap(task.keys, bitmap)
                             if (task.album.isNotEmpty()) {
