@@ -136,6 +136,11 @@ data class PlayerState(
     val historyRevision: Long = -1,
     val favStar: Boolean? = null,
     val favMark: String = "",
+    /**
+     * The player's volume step in percent, 1 to 5. -1 from a player that does
+     * not send it, which is what an older build of the firmware does.
+     */
+    val volumeStep: Int = -1,
 ) {
     val isPlaying: Boolean get() = playState == 1
     val hasTrack: Boolean get() = title.isNotEmpty() || path.isNotEmpty()

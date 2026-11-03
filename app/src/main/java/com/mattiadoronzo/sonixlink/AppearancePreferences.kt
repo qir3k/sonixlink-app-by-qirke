@@ -185,6 +185,25 @@ object AppearancePreferences {
             .show()
     }
 
+    /**
+     * The player's volume step, 1 to 5 percent per press. The choice is sent to
+     * the player, which keeps it; the app shows whatever the player last said.
+     */
+    fun showVolumeStepDialog(activity: AppCompatActivity, onStepChosen: (Int) -> Unit) {
+        val steps = (1..5).toList()
+        val selected = (Settings.volumeStep(activity) - 1).coerceIn(0, steps.size - 1)
+        val labels = steps.map { activity.getString(R.string.volume_step_option, it) }.toTypedArray()
+
+        MaterialAlertDialogBuilder(activity)
+            .setTitle(R.string.action_volume_step)
+            .setSingleChoiceItems(labels, selected) { dialog, which ->
+                onStepChosen(steps[which])
+                dialog.dismiss()
+            }
+            .setNegativeButton(R.string.crash_dismiss, null)
+            .show()
+    }
+
     fun showTabOrderDialog(activity: AppCompatActivity, onOrderChanged: () -> Unit) {
         val currentOrder = Settings.allTabsInOrder(activity).toMutableList()
         val disabled = Settings.disabledTabs(activity).toMutableSet()

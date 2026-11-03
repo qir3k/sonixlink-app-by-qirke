@@ -24,6 +24,11 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_volume_step"
+        android:title="@string/action_volume_step"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_language"
         android:title="@string/action_language"
         app:showAsAction="never" />

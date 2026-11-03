@@ -138,6 +138,8 @@
     <string name="fav_mark_heart">Heart</string>
     <string name="fav_mark_star">Star</string>
     <string name="min_tabs_warning">At least one tab must remain enabled</string>
+    <string name="action_volume_step">Volume step</string>
+    <string name="volume_step_option">%1$d%% per press</string>
 
     <string name="tab_streaming">Streaming</string>
     <string name="streaming_choose">Choose a service</string>

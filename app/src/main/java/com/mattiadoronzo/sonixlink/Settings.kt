@@ -25,6 +25,7 @@ object Settings {
     private const val KEY_DISABLED_TABS = "disabled_tabs"
     private const val KEY_FAV_MARK_PREF = "fav_mark_preference"
     private const val KEY_DEVICE_FAV_MARK = "device_fav_mark"
+    private const val KEY_VOLUME_STEP = "volume_step"
 
     const val FAV_MARK_PREF_DEVICE = "device"
     const val FAV_MARK_PREF_HEART = "heart"
@@ -212,6 +213,21 @@ object Settings {
             FAV_MARK_PREF_HEART -> FAV_MARK_PREF_HEART
             else -> deviceFavMark(context)
         }
+    }
+
+    /**
+     * The step the player's volume moves in, in percent: the player's own
+     * setting, which runs from 1 to 5 and is mirrored here so the app can show
+     * it and offer to change it. 1 until the player has said.
+     */
+    fun volumeStep(context: Context): Int =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getInt(KEY_VOLUME_STEP, 1).coerceIn(1, 5)
+
+    fun rememberVolumeStep(context: Context, step: Int) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+            .putInt(KEY_VOLUME_STEP, step.coerceIn(1, 5))
+            .apply()
     }
 
     fun forgetHost(context: Context) {

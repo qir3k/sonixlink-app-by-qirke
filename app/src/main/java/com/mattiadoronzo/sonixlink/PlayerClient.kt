@@ -133,6 +133,7 @@ class PlayerClient(val host: String, val port: Int = DEFAULT_PORT) {
             historyRevision = json.optLong("history_revision", -1),
             favStar = if (json.has("fav_star")) json.optBoolean("fav_star") else null,
             favMark = json.optString("fav_mark", "").ifEmpty { json.optString("fav_icon", "") },
+            volumeStep = json.optInt("volume_step", -1),
         )
     }
 
@@ -150,6 +151,14 @@ class PlayerClient(val host: String, val port: Int = DEFAULT_PORT) {
     fun previous() = command("do" to "prev")
     fun seek(seconds: Int) = command("do" to "seek", "value" to seconds.toString())
     fun setVolume(percent: Int) = command("do" to "volume", "value" to percent.coerceIn(0, 100).toString())
+
+    /**
+     * The step the player's volume keys move in, 1 to 5 percent, the setting its
+     * own Settings page keeps. The player answers with the step it took in its
+     * state, so a refusal shows up there rather than here.
+     */
+    fun setVolumeStep(step: Int) =
+        command("do" to "volume_step", "value" to step.coerceIn(1, 5).toString())
     fun setMode(mode: PlayMode) = command("do" to "mode", "value" to mode.wire)
     /**
      * Starts a track with the list it came from, which becomes the queue.

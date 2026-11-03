@@ -173,6 +173,33 @@ class StreamingFragment : Fragment() {
             if (mine != menuGeneration || service != id) return@launch
             val current = views ?: return@launch
             current.progress.visibility = View.GONE
+            if (answer.rows.isEmpty() && answer.error.isNotEmpty()) {
+                // A player from before these menus answers "unknown_kind" here.
+                // It still has a first page for each service, so show that one
+                // rather than an error until the player is updated.
+                val fallback = withContext(Dispatchers.IO) {
+                    try {
+                        client.streamList(id, "", "", "")
+                    } catch (e: Exception) {
+                        StreamList("", emptyList(), e.message.orEmpty())
+                    }
+                }
+                if (mine != menuGeneration || service != id) return@launch
+                val now = views ?: return@launch
+                if (fallback.rows.isNotEmpty()) {
+                    page = page.copy(actions = false)
+                    actions = emptyList()
+                    rows = fallback.rows
+                    render()
+                    return@launch
+                }
+                actions = emptyList()
+                rows = emptyList()
+                render()
+                now.emptyText.text = answer.error
+                now.emptyText.visibility = View.VISIBLE
+                return@launch
+            }
             actions = answer.rows.map { Action(it.title, it.kind, it.id) }
             render()
             if (actions.isEmpty() && answer.error.isNotEmpty()) {

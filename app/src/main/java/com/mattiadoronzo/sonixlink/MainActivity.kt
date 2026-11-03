@@ -468,6 +468,11 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        // The volume step is the player's, so a change made on the player itself
+        // is the one the app shows.
+        if (state.volumeStep >= 1) {
+            Settings.rememberVolumeStep(this@MainActivity, state.volumeStep)
+        }
         showNowCover(state.path)
         retryNowCover()
 
@@ -588,6 +593,13 @@ class MainActivity : AppCompatActivity() {
         R.id.action_fav_mark -> {
             AppearancePreferences.showFavMarkDialog(this) {
                 recreate()
+            }
+            true
+        }
+
+        R.id.action_volume_step -> {
+            AppearancePreferences.showVolumeStepDialog(this) { step ->
+                send { it.setVolumeStep(step) }
             }
             true
         }
