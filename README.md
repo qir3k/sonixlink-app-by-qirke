@@ -1,38 +1,70 @@
-# SonixLink
+# SonixLink — TempoTec V1 fork
 
-An Android app that drives **Sonix Player** for the HiBy R3 Pro II from your phone, and browses its library.
+An Android app that drives **Sonix Player** on the **TempoTec V1** from your phone,
+and browses its library.
+
+This fork targets the **TempoTec V1 only**. It is built on
+[Jepl4r/sonixlink-app](https://github.com/Jepl4r/sonixlink-app) and adds a
+translated interface, Genres and Years tabs, customisable tabs, accent and favourite-icon
+choices, and faster artwork and repeat launches. It lives at
+[qir3k/sonixlink-app-by-qirke](https://github.com/qir3k/sonixlink-app-by-qirke).
+
+---
+
+## Why this fork
+
+Everything below is in this fork and not in upstream.
+
+| | This fork |
+| --- | --- |
+| **12 languages** | English, Čeština, Deutsch, Español, Français, Italiano, 日本語, Nederlands, Polski, Português (Brasil), Русский and Українська, with a language picker in the menu. The app follows the phone's language by default and can be switched per app, without changing the phone's language. |
+| **Genres tab** | A tab of its own: every genre in the index, how many tracks it holds, its tracks, and circle-play (random order, in sequence, or a random track to the queue). |
+| **Years tab** | Every release year in the index, oldest first, with how many tracks each holds, its tracks, and the same circle-play choices as Genres. |
+| **Streaming tab** | YouTube Music, Tidal, Qobuz, Podcasts and Internet radio browsed from the phone: per-service home pages, search, albums, playlists, shows, episodes and stations, with playback starting on the player. The services stay on the player — no account or key ever comes to the phone. |
+| **Tab order and visibility** | Reorder tabs by dragging the grip or with the up/down buttons, switch a tab off with its checkbox, and reset to the default order. At least one tab always stays on. |
+| **Accent color picker** | *From player* (default) keeps following the player's accent, or pick one of 14 fixed colors — blue, red, orange, yellow, lime, green, cyan, indigo, purple, pink, brown, slate, amber or white. The choice applies to every open screen at once. |
+| **Heart or star, detected** | The favourite button and the Favourites tab icon follow the mark the player uses: a heart or a star, read from the player itself. Choose *Auto (from player)*, *Heart* or *Star* by hand. |
+| **Artwork everywhere** | Album covers come from the player's thumbnails; an album still waiting for its thumbnail is fetched directly from the track's embedded art (`/api/art`). Covers, the now-playing image and the blurred background are all cached and drawn crisper. |
+| **Fast second launch** | The library index, the list of thumbnail keys and every thumbnail already fetched are kept on the phone and reopened locally. A later launch asks the player only for its fingerprints and downloads nothing when the library has not changed. |
+| **Live artwork over Wi-Fi and Bluetooth** | Artwork is fetched while the lists scroll — 32 keys a request over Wi-Fi, 8 with a pause over Bluetooth — and a cover the player is still rendering is retried until it is ready. A cover skipped past is never fetched. |
+| **Smooth scrolling** | When thumbnails arrive only the visible rows are rebound, on a short debounce, instead of the whole list — no ghosting tails while flinging on a 120 Hz screen. |
+| **Release builds** | GitHub Actions builds a tagged APK with a SHA-256 checksum on every `main` push, and a test workflow builds the debug APK on `dev` and pull requests. |
+
+Everything upstream does is still here: discovery over mDNS and the UDP beacon,
+the search page, playback controls and modes, selection mode, the full queue
+page with history, the media notification, Bluetooth, folder browsing, the
+player's own sort order and favourite handling, and the crash log.
 
 ---
 
 ## Functionalities
 
-- **Finds the player on its own.** Two independent routes, so only one of them has to work: DNS-SD (`_sonixlink._tcp`) and a plain UDP beacon on port 7801.
-- **Browses the whole library** in seven tabs - Tracks, Albums, Artists, Album
-  artists, Playlists, Favourites and Folders (the card's folders, as the
-  player's own file browser lists them).
+- **Finds the player on its own.** Two independent routes, so only one of them has to work: DNS-SD (`_sonixlink._tcp`) and a plain UDP beacon on port 7801. The last player that answered is reconnected to without asking.
+- **Browses the whole library** in ten tabs — Tracks, Albums, Artists, Album artists, Genres, Years, Playlists, Favourites, Folders (the card's folders, as the player's own file browser lists them) and Streaming. The tab order is up to you, and tabs you do not use can be hidden.
+- **Browses the streaming services** the player already has — YouTube Music, Tidal, Qobuz, Podcasts and Internet radio — with a page for each: home rows, search, albums and playlists, show episodes, radio stations and radio browsing by country, genre or language. Tapping a track, episode or station starts it on the player, and the player queues the rest of the page.
 - **Search** with a page of its own split into tracks, albums and artists.
-- **Controls**: previous, play/pause, next, the five playback modes,
-  the favourite star and the queue.
-- **Circle-play** on the lists the player has it on: play in random order, in
-  sequence, or add a random track to the queue.
-- **Selection mode** as on the player: a long press on a track, a record, an
-  artist or a playlist, then add the chosen tracks to the queue, the
-  favourites or a playlist (or take them out of the favourites or the
-  playlist they are in).
-- **The queue page of the player**: Now playing at the top and what is to play
-  below, fetched page by page as you scroll; the history above, a heading per
-  day, held back when pulled down from Now playing. Select rows to take them
-  out, drag them by the grip to reorder them, tap an entry of the history to
-  play it next or long-press it to drop a copy anywhere in what is to play.
-- **A media notification** with the track playing on the player, its artwork,
-  previous/play-pause/next and the position bar, also on the lock screen, so
-  the app does not need to be opened to change track.
-- **Over Wi-Fi or Bluetooth.** A player paired with the phone can be reached
-  without a shared Wi-Fi network.
-- **Now-playing screen** with the cover sent by the player.
-- **The phone's volume keys can change the device volume**, with the app open
-  and, through the media notification, from the lock screen.
-- **The accent color follows the player.** Change it there and every screen of the app changes with it, at once.
+- **Controls**: previous, play/pause, next, the five playback modes, the favourite mark and the queue.
+- **Circle-play** on the lists the player has it on: play in random order, in sequence, or add a random track to the queue — including a whole genre.
+- **Selection mode** as on the player: a long press on a track, a record, an artist or a playlist, then add the chosen tracks to the queue, the favourites or a playlist (or take them out of the favourites or the playlist they are in).
+- **The queue page of the player**: Now playing at the top and what is to play below, fetched page by page as you scroll; the history above, a heading per day, held back when pulled down from Now playing. Select rows to take them out, drag them by the grip to reorder them, tap an entry of the history to play it next or long-press it to drop a copy anywhere in what is to play.
+- **A media notification** with the track playing on the player, its artwork, previous/play-pause/next and the position bar, also on the lock screen, so the app does not need to be opened to change track.
+- **Over Wi-Fi or Bluetooth.** A player paired with the phone can be reached without a shared Wi-Fi network.
+- **Now-playing screen** with the cover sent by the player and a blurred version of the same image behind it.
+- **The phone's volume keys can change the device volume**, with the app open and, through the media notification, from the lock screen.
+- **The accent color follows the player** by default; change it there and every screen of the app changes with it, at once. Prefer a fixed color? Pick one in the menu and the app stops following the player.
+
+### The settings menu
+
+| Setting | Default | Choices |
+| --- | --- | --- |
+| Language | System default (the phone's language) | 11 languages, or back to System default |
+| Accent color | From player (device default) | 14 fixed colors |
+| Favourite icon | Auto (from player) | Auto, Heart, Star |
+| Tab order | Tracks, Albums, Artists, Album artists, Genres, Years, Playlists, Favourites, Folders, Streaming | Drag or arrows to reorder; uncheck to hide; Reset |
+
+All four are kept between launches.
+
+---
 
 ## How it works
 
@@ -41,11 +73,10 @@ it locally. The covers in the lists are the player's **own thumbnails**, fetched
 screenful at a time as the lists scroll (`/api/thumbs`) and kept on the phone:
 the player's thumbnail file can be a hundred megabytes, and only the list of
 which thumbnails exist (`/api/thumbkeys`, eight bytes each) is read at sync.
-
-> **Worth knowing:** the store holds thumbnails for rows the player has actually
-drawn at least once. The more of the library has been browsed on the player, the
-more artwork the app has; an album falls back to the first of its tracks that has
-one, and the rest keep the icon.
+For an album whose thumbnail the player has never drawn, the app asks for the
+track's embedded artwork directly (`/api/art`) and stores it in the same local
+thumbnail store, so the album gets a cover without waiting for the player to be
+browsed first.
 
 What is transmitted after is the state and the commands, which are two lines of
 JSON, plus the full artwork for the now-playing screen.
@@ -57,7 +88,7 @@ anything that looks odd opens in a browser and shows itself.
 
 The player shows SonixLink's icon in its status bar for as long as requests keep
 arriving (20 s after the last one). The app keeps a foreground service running
-while it is connected -- the same one that owns the media notification -- which
+while it is connected — the same one that owns the media notification — which
 reads the state every 2 s while the player plays and every 5 s in pause, and
 says `/api/bye` when it disconnects.
 
@@ -71,17 +102,20 @@ says `/api/bye` when it disconnects.
 | `GET /api/covers` | the whole thumbnail store, as a file (kept for older apps) |
 | `GET /api/queue[?from=<n>]` | up to 200 paths of the queue: around the playing track, or from row `n`; with `count`, `position`, `revision` (changes whenever the queue does) and `pending` (the player has not fetched that stretch yet: ask again) |
 | `GET /api/browse[?path=<dir>]` | one folder of the card, folders first: `{path, root, parent, entries:[{name, path, dir}]}`; confined to the card |
-| `GET /api/ping` | `ok` -- the heartbeat, for a client that needs nothing else |
+| `GET /api/ping` | `ok` — the heartbeat, for a client that needs nothing else |
 | `GET /api/bye` | the app is leaving: the player drops the icon at once |
 | `GET /api/favourites` | the favourites as they stand right now |
 | `GET /api/history[?limit=<n>]` | the latest `n` (200, at most 1000) entries of what the player has played, oldest first: `{revision, items:[{id, path, title, artist, played_at}]}`; `history_revision` in the state changes when one is added |
 | `GET /api/art?path=[&max=<px>]` | one track's artwork, whole and undecoded; with `max` fitted into that many pixels and sent as a JPEG of a few tens of KB. A fitted cover is made on a thread of its own: until it is ready the answer is `202` and the app asks again a moment later (the player also makes the next track's cover ahead, at the size last asked for) |
-| `POST /api/command?do=…` | `play`, `pause`, `toggle`, `next`, `prev`, `seek&value=<seconds>`, `volume&value=<0-100>`, `mode&value=<normal\|repeat_all\|repeat_one\|shuffle\|shuffle_repeat>`, `play_path&path=<path>[&list=<all\|album\|artist\|album_artist\|genre\|favourites\|playlist\|queue\|folder>&value=<name>]`, `favourite&path=<path>[&value=0\|1]`, `queue_index&value=<n>`, `scan`, `play_all&list=<…\|albums>&value=<name>&how=<sequence\|shuffle\|random>` (the circle-play menu) |
+| `POST /api/command?do=…` | `play`, `pause`, `toggle`, `next`, `prev`, `seek&value=<seconds>`, `volume&value=<0-100>`, `mode&value=<normal\|repeat_all\|repeat_one\|shuffle\|shuffle_repeat>`, `play_path&path=<path>[&list=<all\|album\|artist\|album_artist\|genre\|year\|favourites\|playlist\|queue\|folder>&value=<name>]`, `favourite&path=<path>[&value=0\|1]`, `queue_index&value=<n>`, `scan`, `play_all&list=<…\|year\|albums>&value=<name>&how=<sequence\|shuffle\|random>` (the circle-play menu) |
 | `POST /api/command?do=<queue_next\|favourites_add\|favourites_remove\|playlist_add\|playlist_remove>[&value=<playlist>]` | a selection of tracks, as the player's selection mode: the paths in the body, one a line |
 | `POST /api/command?do=queue_remove&rev=<r>` | the queue entries in the body (indices, one a line) taken out |
 | `POST /api/command?do=queue_move&from=<i>&to=<j>&rev=<r>` | one entry moved, `to` being where it ends up |
 | `POST /api/command?do=history_play&id=<id>` | an entry of the history put in right after the track playing, and played |
 | `POST /api/command?do=history_insert&id=<id>&at=<slot>&rev=<r>` | an entry of the history put in the queue at `slot` |
+| `GET /api/stream/services` | the five streaming services, with whether each is configured and signed in |
+| `GET /api/stream/list?service=&kind=&id=&q=&offset=` | one page of a service: `{title, count, more, error, rows:[{kind, id, title, subtitle, album, art, mime, duration, track_number, playable}]}` |
+| `POST /api/stream/play?service=&index=` | plays row `index` of that service's last page and queues the rest of its tracks, episodes or stations |
 
 The queue commands change only what comes after the track playing, and `rev`
 is the queue revision they were worked out against: the player drops a
@@ -120,11 +154,24 @@ headphones does not push it off. If the phone starts sending its own sound to
 the player after pairing, switch off **Media audio** (and **Calls**) for the
 player in the phone's Bluetooth settings: SonixLink needs neither.
 
+### Streaming
+
+The streaming pages are a view of the player's own clients, not a second
+implementation: the phone asks the player for a page (`/api/stream/list`), the
+player calls its YouTube Music, Tidal, Qobuz, Podcasts or radio module, and the
+answer is returned as one row shape. Tapping a row sends only the service and
+the row's index (`/api/stream/play`), so the player still holds the titles,
+ids and cover addresses the queue needs. The caches, sidecars and downloads
+stay on the player exactly as when its own screen starts them, including
+offline copies and the card. Accounts, API keys and sign-in state are never
+sent to the phone: a service without them is shown as *Not set up on the
+player* or *Sign in on the player*.
+
 ### The order of the lists
 
 The lists read in the player's own order: `/api/info` and `/api/state` carry
-`sort` -- which lists the player has reversed (Z-A) or put by date added, and
-whether an artist's tracks are grouped by record -- and the app orders its
+`sort` — which lists the player has reversed (Z-A) or put by date added, and
+whether an artist's tracks are grouped by record — and the app orders its
 copies the same way, redrawing a tab when that changes on the player. An album
 opens by disc and track number, and two records with the same name are two
 albums, told apart by the `album_key` the player writes beside every track.
@@ -132,14 +179,24 @@ A track tapped in the app gets the queue the player's own list would give.
 
 ### What is downloaded, and when
 
-The index is kept on the phone and downloaded again only when its fingerprint
-(`db_hash` in `/api/info`) changes; the list of thumbnail keys likewise with
-`covers_hash`, and thumbnails already fetched are never fetched again. The
-fingerprint covers what the app reads -- the library tables and the playlists,
-the thumbnail keys -- and not what the player writes on its own all the time
-(where playback was left, the saved queue), so a connection with nothing new
-on the player downloads nothing. The copy on the phone is tied to the player's
-serial, so the same player over Wi-Fi and over Bluetooth shares it.
+The index is kept on the phone (`library.db`) and downloaded again only when its
+fingerprint (`db_hash` in `/api/info`) changes; the list of thumbnail keys
+(`thumbkeys.txt`) likewise with `covers_hash`, and thumbnails already fetched
+(`thumbnails.db`) are never fetched again. Album covers resolved from embedded
+art are stored the same way. The fingerprint covers what the app reads — the
+library tables and the playlists, the thumbnail keys — and not what the player
+writes on its own all the time (where playback was left, the saved queue), so a
+connection with nothing new on the player downloads nothing. The copy on the
+phone is tied to the player's serial, so the same player over Wi-Fi and over
+Bluetooth shares it.
+
+The second launch therefore opens the local index and thumbnail store and shows
+the library without downloading it again; only a changed library, a different
+player, or **Refresh the index** in the menu starts a fresh download.
+
+The now-playing cover and the notification keep the last four covers in memory,
+and the player is asked for one cover at a time so only the track that ends up
+playing crosses the link.
 
 ### Discovery
 
@@ -155,11 +212,18 @@ The trace of the last crash goes to `last-crash.txt` in the app's own data, and
 is shown on the next launch with a **Copy** button. That is the thing to send —
 not "it closed itself".
 
+---
+
 ## Requirements
 
-- Android 7.0 (API 24) or newer
-- A HiBy R3 Pro II running Sonix Player, with **Wireless --> SonixLink** switched
-  on, on the same Wi-Fi network or paired with the phone over Bluetooth
+- Android 7.0 (API 24) or newer.
+- A **TempoTec V1** running firmware with **Sonix Player** and SonixLink, with
+  **Wireless --> SonixLink** switched on, on the same Wi-Fi network or paired
+  with the phone over Bluetooth.
+- Other players are not supported by this fork.
+- Streaming needs the matching service configured on the player: an API key or
+  relay for YouTube Music, a Tidal or Qobuz account, Podcast Index keys for
+  podcasts, and a network connection for radio.
 
 ## Building
 
@@ -168,3 +232,23 @@ Nothing beyond Android Studio (Koala or newer) is needed:
 1. `File > Open`, and choose this folder.
 2. Studio fetches Gradle 8.7 and the dependencies on the first sync.
 3. `Run` on the phone, or `Build > Build APK(s)` for an APK to install by hand.
+
+From the command line, with JDK 17 and the Android SDK installed:
+
+```sh
+./gradlew assembleDebug
+```
+
+The release workflow publishes a tagged APK and its SHA-256 checksum on every
+push to `main`; the test workflow builds the debug APK on `dev` and on pull
+requests.
+
+The Streaming tab needs the `/api/stream/*` routes in the player firmware
+(`../sonix-player-by-qirke`). Without them the tab opens with no services; the
+rest of the app is unaffected.
+
+## Credits
+
+SonixLink was written by [Jepl4r](https://github.com/Jepl4r) and is maintained
+here as a TempoTec V1 fork by
+[qir3k](https://github.com/qir3k/sonixlink-app-by-qirke).

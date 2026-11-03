@@ -190,7 +190,11 @@ class MainActivity : AppCompatActivity() {
     ) : FragmentStateAdapter(activity) {
         override fun getItemCount(): Int = sections.size
         override fun createFragment(position: Int): Fragment =
-            BrowseFragment.of(sections[position])
+            if (sections[position] == Section.STREAMING) {
+                StreamingFragment()
+            } else {
+                BrowseFragment.of(sections[position])
+            }
 
         override fun getItemId(position: Int): Long = sections[position].ordinal.toLong()
         override fun containsItem(itemId: Long): Boolean =

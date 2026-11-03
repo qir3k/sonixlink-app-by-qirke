@@ -36,9 +36,11 @@ object Settings {
         Section.ARTISTS,
         Section.ALBUM_ARTISTS,
         Section.GENRES,
+        Section.YEARS,
         Section.PLAYLISTS,
         Section.FAVOURITES,
         Section.FOLDERS,
+        Section.STREAMING,
     )
 
     fun lastHost(context: Context): Pair<String, Int>? {

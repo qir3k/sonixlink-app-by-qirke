@@ -130,6 +130,7 @@
 
 
     <string name="tab_genres">Genres</string>
+    <string name="tab_years">Years</string>
     <string name="action_tab_order">Tab order</string>
     <string name="reset_default">Reset</string>
     <string name="action_fav_mark">Favourite icon</string>
@@ -137,4 +138,27 @@
     <string name="fav_mark_heart">Heart</string>
     <string name="fav_mark_star">Star</string>
     <string name="min_tabs_warning">At least one tab must remain enabled</string>
+
+    <string name="tab_streaming">Streaming</string>
+    <string name="streaming_choose">Choose a service</string>
+    <string name="streaming_search_hint">Search</string>
+    <string name="streaming_empty">Nothing here.</string>
+    <string name="streaming_failed">The player did not answer.</string>
+    <string name="streaming_playing">Starting on the player…</string>
+    <string name="streaming_unplayable">This entry cannot be played.</string>
+    <string name="streaming_not_configured">Not set up on the player</string>
+    <string name="streaming_signed_out">Sign in on the player</string>
+    <string name="streaming_ready">Ready</string>
+    <string name="stream_explore">Explore</string>
+    <string name="stream_charts">Charts</string>
+    <string name="stream_liked">Liked songs</string>
+    <string name="stream_new">New releases</string>
+    <string name="stream_favourites">Favourites</string>
+    <string name="stream_trending">Trending</string>
+    <string name="stream_followed">Followed</string>
+    <string name="stream_popular">Popular stations</string>
+    <string name="stream_custom">My stations</string>
+    <string name="stream_countries">Browse by country</string>
+    <string name="stream_genres">Browse by genre</string>
+    <string name="stream_languages">Browse by language</string>
 </resources>

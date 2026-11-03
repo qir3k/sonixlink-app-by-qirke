@@ -368,6 +368,81 @@ class PlayerClient(val host: String, val port: Int = DEFAULT_PORT) {
         )
     }
 
+    // -----------------------------------------------------------------------
+    // Streaming
+    // -----------------------------------------------------------------------
+
+    /** The services the player can stream from, and whether they are usable. */
+    fun streamServices(): List<StreamService> {
+        val json = JSONObject(request("/api/stream/services", readTimeout = 8000))
+        val array = json.optJSONArray("services") ?: return emptyList()
+        val out = ArrayList<StreamService>(array.length())
+        for (i in 0 until array.length()) {
+            val item = array.optJSONObject(i) ?: continue
+            val id = item.optString("id", "")
+            if (id.isEmpty()) continue
+            out.add(
+                StreamService(
+                    id = id,
+                    name = item.optString("name", id),
+                    available = item.optBoolean("available", false),
+                    signedIn = item.optBoolean("signed_in", false),
+                    detail = item.optString("detail", ""),
+                )
+            )
+        }
+        return out
+    }
+
+    /**
+     * One page of a service. `kind` is the service's own list name (search,
+     * featured, album, feed, stations...), `id` the item to open, and `query`
+     * the search text or the radio browse list. Blocking.
+     */
+    fun streamList(service: String, kind: String, id: String = "", query: String = "", offset: Int = 0): StreamList {
+        var target = "/api/stream/list?service=" + URLEncoder.encode(service, "UTF-8")
+        target += "&kind=" + URLEncoder.encode(kind, "UTF-8")
+        if (id.isNotEmpty()) target += "&id=" + URLEncoder.encode(id, "UTF-8")
+        if (query.isNotEmpty()) target += "&q=" + URLEncoder.encode(query, "UTF-8")
+        if (offset > 0) target += "&offset=$offset"
+
+        val json = JSONObject(request(target, readTimeout = 45000))
+        val array = json.optJSONArray("rows") ?: return StreamList(json.optString("title", ""), emptyList())
+        val rows = ArrayList<StreamRow>(array.length())
+        for (i in 0 until array.length()) {
+            val item = array.optJSONObject(i) ?: continue
+            rows.add(
+                StreamRow(
+                    kind = item.optString("kind", ""),
+                    id = item.optString("id", ""),
+                    title = item.optString("title", ""),
+                    subtitle = item.optString("subtitle", ""),
+                    album = item.optString("album", ""),
+                    art = item.optString("art", ""),
+                    mime = item.optString("mime", ""),
+                    duration = item.optInt("duration", 0),
+                    trackNumber = item.optInt("track_number", 0),
+                    playable = item.optBoolean("playable", true),
+                )
+            )
+        }
+        return StreamList(
+            title = json.optString("title", ""),
+            rows = rows,
+            error = json.optString("error", ""),
+            more = json.optBoolean("more", false),
+        )
+    }
+
+    /** Plays entry [index] of the last list this service returned, queueing the rest. */
+    fun streamPlay(service: String, index: Int) {
+        val target = "/api/stream/play?service=" + URLEncoder.encode(service, "UTF-8") + "&index=$index"
+        val json = JSONObject(request(target, method = "POST", readTimeout = 30000))
+        if (!json.optBoolean("ok", false)) {
+            throw PlayerException(json.optString("error", "could not play"))
+        }
+    }
+
     /** The heartbeat: keeps the player's status bar showing the app. */
     fun ping() {
         request("/api/ping")

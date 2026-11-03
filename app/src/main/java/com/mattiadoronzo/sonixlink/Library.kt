@@ -225,6 +225,13 @@ class Library(context: Context) {
            FROM GENRE_TABLE t WHERE genre <> '' ORDER BY sortkey, genre"""
     )
 
+    /** Release years, oldest first; years the tags did not give are left out. */
+    fun years(): List<Row> = query(
+        """SELECT CAST(year AS TEXT) AS row_title, '' AS row_subtitle, CAST(year AS TEXT) AS row_filter,
+                  COUNT(*) AS row_count
+           FROM MEDIA_TABLE WHERE year > 0 AND path <> '' GROUP BY year ORDER BY year"""
+    )
+
     /** Favourites oldest-starred first, or newest first when the player's list is reversed. */
     fun favourites(sort: SortPrefs = Session.sort): List<Row> = query(
         """SELECT f.name AS row_title, f.artist AS row_subtitle, f.path AS row_path,
@@ -313,6 +320,13 @@ class Library(context: Context) {
                   path AS row_art_path, mtime AS row_art_mtime, size AS row_art_size
            FROM MEDIA_TABLE WHERE genre = ? AND path <> '' ORDER BY sortkey, rowid""",
         arrayOf(genre),
+    )
+
+    fun tracksOfYear(year: String): List<Row> = query(
+        """SELECT name AS row_title, artist AS row_subtitle, path AS row_path, album AS row_album,
+                  path AS row_art_path, mtime AS row_art_mtime, size AS row_art_size
+           FROM MEDIA_TABLE WHERE year = ? AND path <> '' ORDER BY sortkey, rowid""",
+        arrayOf(year),
     )
 
     /** A playlist, in the order it was built. */

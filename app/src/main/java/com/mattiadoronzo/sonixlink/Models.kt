@@ -187,7 +187,40 @@ enum class Section(val titleRes: Int, val icon: Int) {
     ARTISTS(R.string.tab_artists, R.drawable.ic_artist),
     ALBUM_ARTISTS(R.string.tab_album_artists, R.drawable.ic_album_artist),
     GENRES(R.string.tab_genres, R.drawable.ic_genre),
+    YEARS(R.string.tab_years, R.drawable.ic_year),
     PLAYLISTS(R.string.tab_playlists, R.drawable.ic_playlist),
     FAVOURITES(R.string.tab_favourites, R.drawable.ic_favourite),
     FOLDERS(R.string.tab_folders, R.drawable.ic_folder),
+    STREAMING(R.string.tab_streaming, R.drawable.ic_stream),
 }
+
+/** One streaming service the player offers. */
+data class StreamService(
+    val id: String,
+    val name: String,
+    val available: Boolean,
+    val signedIn: Boolean,
+    val detail: String,
+)
+
+/** One row of a streaming page: something to play, or something to open. */
+data class StreamRow(
+    val kind: String,
+    val id: String,
+    val title: String,
+    val subtitle: String,
+    val album: String = "",
+    val art: String = "",
+    val mime: String = "",
+    val duration: Int = 0,
+    val trackNumber: Int = 0,
+    val playable: Boolean = true,
+)
+
+/** A page from a service: a title, its rows, and what went wrong if anything. */
+data class StreamList(
+    val title: String,
+    val rows: List<StreamRow>,
+    val error: String = "",
+    val more: Boolean = false,
+)
