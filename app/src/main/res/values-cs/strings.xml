@@ -125,4 +125,8 @@
     <string name="accent_slate">Břidlicová</string>
     <string name="accent_amber">Jantarová</string>
     <string name="accent_oled">Bílá</string>
+
+    <string name="tab_genres">Žánry</string>
+    <string name="action_tab_order">Pořadí záložek</string>
+    <string name="reset_default">Obnovit</string>
 </resources>

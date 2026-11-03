@@ -121,4 +121,8 @@
     <string name="accent_slate">Schiefergrau</string>
     <string name="accent_amber">Bernstein</string>
     <string name="accent_oled">Weiß</string>
+
+    <string name="tab_genres">Genres</string>
+    <string name="action_tab_order">Tab-Reihenfolge</string>
+    <string name="reset_default">Zurücksetzen</string>
 </resources>

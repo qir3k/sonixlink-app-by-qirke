@@ -121,4 +121,8 @@
     <string name="accent_slate">Ardoise</string>
     <string name="accent_amber">Ambre</string>
     <string name="accent_oled">Blanc</string>
+
+    <string name="tab_genres">Genres</string>
+    <string name="action_tab_order">Ordre des onglets</string>
+    <string name="reset_default">Réinitialiser</string>
 </resources>

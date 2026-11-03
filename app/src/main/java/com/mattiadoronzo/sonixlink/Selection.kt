@@ -33,6 +33,7 @@ object Selection {
                 Section.ALBUMS -> library?.tracksOfAlbum(row.filter)
                 Section.ARTISTS -> library?.tracksOfArtist(row.filter)
                 Section.ALBUM_ARTISTS -> library?.tracksOfAlbumArtist(row.filter)
+                Section.GENRES -> library?.tracksOfGenre(row.filter)
                 Section.PLAYLISTS -> LiveLists.playlistTracks(library, row.filter)
                 else -> null
             }

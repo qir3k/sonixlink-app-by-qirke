@@ -121,4 +121,8 @@
     <string name="accent_slate">Pizarra</string>
     <string name="accent_amber">Ámbar</string>
     <string name="accent_oled">Blanco</string>
+
+    <string name="tab_genres">Géneros</string>
+    <string name="action_tab_order">Orden de pestañas</string>
+    <string name="reset_default">Restablecer</string>
 </resources>

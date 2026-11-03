@@ -123,4 +123,8 @@
     <string name="accent_slate">Грифельный</string>
     <string name="accent_amber">Янтарный</string>
     <string name="accent_oled">Белый</string>
+
+    <string name="tab_genres">Жанры</string>
+    <string name="action_tab_order">Порядок вкладок</string>
+    <string name="reset_default">Сброс</string>
 </resources>

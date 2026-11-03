@@ -125,4 +125,8 @@
     <string name="accent_slate">Łupkowy</string>
     <string name="accent_amber">Bursztynowy</string>
     <string name="accent_oled">Biały</string>
+
+    <string name="tab_genres">Gatunki</string>
+    <string name="action_tab_order">Kolejność kart</string>
+    <string name="reset_default">Resetuj</string>
 </resources>

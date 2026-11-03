@@ -136,10 +136,11 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.title = name.ifEmpty { client.label }
         supportActionBar?.subtitle = client.label
 
-        views.pager.adapter = Sections(this)
+        val sections = Settings.tabOrder(this)
+        views.pager.adapter = Sections(this, sections)
         views.pager.offscreenPageLimit = 1
         TabLayoutMediator(views.tabs, views.pager) { tab, position ->
-            val section = Section.entries[position]
+            val section = sections[position]
             tab.setText(section.titleRes)
             tab.setIcon(section.icon)
         }.attach()
@@ -182,10 +183,17 @@ class MainActivity : AppCompatActivity() {
     // The tabs
     // -----------------------------------------------------------------------
 
-    private class Sections(activity: AppCompatActivity) : FragmentStateAdapter(activity) {
-        override fun getItemCount(): Int = Section.entries.size
+    private class Sections(
+        activity: AppCompatActivity,
+        private val sections: List<Section>
+    ) : FragmentStateAdapter(activity) {
+        override fun getItemCount(): Int = sections.size
         override fun createFragment(position: Int): Fragment =
-            BrowseFragment.of(Section.entries[position])
+            BrowseFragment.of(sections[position])
+
+        override fun getItemId(position: Int): Long = sections[position].ordinal.toLong()
+        override fun containsItem(itemId: Long): Boolean =
+            sections.any { it.ordinal.toLong() == itemId }
     }
 
     fun addLibraryListener(listener: LibraryListener) {
@@ -555,6 +563,13 @@ class MainActivity : AppCompatActivity() {
 
         R.id.action_accent -> {
             AppearancePreferences.showAccentDialog(this)
+            true
+        }
+
+        R.id.action_tab_order -> {
+            AppearancePreferences.showTabOrderDialog(this) {
+                recreate()
+            }
             true
         }
 

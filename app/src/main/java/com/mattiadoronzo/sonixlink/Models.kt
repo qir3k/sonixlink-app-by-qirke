@@ -182,6 +182,7 @@ enum class Section(val titleRes: Int, val icon: Int) {
     ALBUMS(R.string.tab_albums, R.drawable.ic_album),
     ARTISTS(R.string.tab_artists, R.drawable.ic_artist),
     ALBUM_ARTISTS(R.string.tab_album_artists, R.drawable.ic_album_artist),
+    GENRES(R.string.tab_genres, R.drawable.ic_genre),
     PLAYLISTS(R.string.tab_playlists, R.drawable.ic_playlist),
     FAVOURITES(R.string.tab_favourites, R.drawable.ic_favourite),
     FOLDERS(R.string.tab_folders, R.drawable.ic_folder),

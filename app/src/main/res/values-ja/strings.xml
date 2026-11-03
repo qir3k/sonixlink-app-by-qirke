@@ -122,4 +122,8 @@
     <string name="accent_slate">スレート</string>
     <string name="accent_amber">アンバー</string>
     <string name="accent_oled">ホワイト</string>
+
+    <string name="tab_genres">ジャンル</string>
+    <string name="action_tab_order">タブの順序</string>
+    <string name="reset_default">リセット</string>
 </resources>

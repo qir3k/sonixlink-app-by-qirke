@@ -126,4 +126,8 @@
     <string name="accent_slate">Ardesia</string>
     <string name="accent_amber">Ambra</string>
     <string name="accent_oled">Bianco</string>
+
+    <string name="tab_genres">Generi</string>
+    <string name="action_tab_order">Ordine schede</string>
+    <string name="reset_default">Ripristina</string>
 </resources>

@@ -1,18 +1,27 @@
 package com.mattiadoronzo.sonixlink
 
+import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.RadioButton
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.content.ContextCompat
 import androidx.core.os.LocaleListCompat
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import java.util.Collections
+import kotlin.math.abs
 
 data class AccentOption(
     val id: String,
@@ -138,6 +147,124 @@ object AppearancePreferences {
                 dialog.dismiss()
             }
             .setNegativeButton(R.string.crash_dismiss, null)
+            .show()
+    }
+
+    fun showTabOrderDialog(activity: AppCompatActivity, onOrderChanged: () -> Unit) {
+        val currentOrder = Settings.tabOrder(activity).toMutableList()
+        val density = activity.resources.displayMetrics.density
+        val paddingPx = (8 * density).toInt()
+
+        val recyclerView = RecyclerView(activity).apply {
+            layoutManager = LinearLayoutManager(activity)
+            setPadding(0, paddingPx, 0, paddingPx)
+            clipToPadding = false
+        }
+
+        var changed = false
+        lateinit var itemTouchHelper: ItemTouchHelper
+
+        val adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+            inner class TabViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
+                val icon: ImageView = view.findViewById(R.id.tabIcon)
+                val name: TextView = view.findViewById(R.id.tabName)
+                val up: ImageButton = view.findViewById(R.id.btnMoveUp)
+                val down: ImageButton = view.findViewById(R.id.btnMoveDown)
+                val drag: ImageView = view.findViewById(R.id.dragHandle)
+            }
+
+            override fun getItemCount(): Int = currentOrder.size
+
+            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+                val view = LayoutInflater.from(activity).inflate(R.layout.dialog_tab_order_row, parent, false)
+                return TabViewHolder(view)
+            }
+
+            override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+                val vh = holder as TabViewHolder
+                val section = currentOrder[position]
+                vh.icon.setImageResource(section.icon)
+                vh.icon.imageTintList = ColorStateList.valueOf(ContextCompat.getColor(activity, R.color.text_secondary))
+                vh.name.setText(section.titleRes)
+
+                val canUp = position > 0
+                vh.up.isEnabled = canUp
+                vh.up.alpha = if (canUp) 1.0f else 0.25f
+
+                val canDown = position < currentOrder.size - 1
+                vh.down.isEnabled = canDown
+                vh.down.alpha = if (canDown) 1.0f else 0.25f
+
+                vh.up.setOnClickListener {
+                    val pos = holder.bindingAdapterPosition
+                    if (pos > 0) {
+                        Collections.swap(currentOrder, pos, pos - 1)
+                        notifyItemMoved(pos, pos - 1)
+                        notifyItemRangeChanged(pos - 1, 2)
+                        changed = true
+                        Settings.rememberTabOrder(activity, currentOrder)
+                    }
+                }
+
+                vh.down.setOnClickListener {
+                    val pos = holder.bindingAdapterPosition
+                    if (pos in 0 until currentOrder.size - 1) {
+                        Collections.swap(currentOrder, pos, pos + 1)
+                        notifyItemMoved(pos, pos + 1)
+                        notifyItemRangeChanged(pos, 2)
+                        changed = true
+                        Settings.rememberTabOrder(activity, currentOrder)
+                    }
+                }
+
+                vh.drag.setOnTouchListener { _, event ->
+                    if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                        itemTouchHelper.startDrag(holder)
+                    }
+                    false
+                }
+            }
+        }
+
+        itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
+            ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0
+        ) {
+            override fun onMove(
+                rv: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean {
+                val from = viewHolder.bindingAdapterPosition
+                val to = target.bindingAdapterPosition
+                if (from in currentOrder.indices && to in currentOrder.indices) {
+                    Collections.swap(currentOrder, from, to)
+                    adapter.notifyItemMoved(from, to)
+                    adapter.notifyItemRangeChanged(minOf(from, to), abs(from - to) + 1)
+                    changed = true
+                    Settings.rememberTabOrder(activity, currentOrder)
+                }
+                return true
+            }
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
+        })
+
+        itemTouchHelper.attachToRecyclerView(recyclerView)
+        recyclerView.adapter = adapter
+
+        MaterialAlertDialogBuilder(activity)
+            .setTitle(R.string.action_tab_order)
+            .setView(recyclerView)
+            .setPositiveButton(R.string.crash_dismiss) { _, _ ->
+                if (changed) onOrderChanged()
+            }
+            .setNeutralButton(R.string.reset_default) { _, _ ->
+                Settings.resetTabOrder(activity)
+                onOrderChanged()
+            }
+            .setOnDismissListener {
+                if (changed) onOrderChanged()
+            }
             .show()
     }
 }

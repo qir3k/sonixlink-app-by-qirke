@@ -240,6 +240,7 @@ class BrowseFragment : Fragment(), MainActivity.LibraryListener {
                 section == Section.ALBUMS -> "album" to category.filter
                 section == Section.ARTISTS -> "artist" to category.filter
                 section == Section.ALBUM_ARTISTS -> "album_artist" to category.filter
+                section == Section.GENRES -> "genre" to category.filter
                 // The player takes the playlist's name, not its "M3U_" table name.
                 section == Section.PLAYLISTS -> "playlist" to category.filter.removePrefix("M3U_")
                 else -> "all" to ""
@@ -407,7 +408,7 @@ class BrowseFragment : Fragment(), MainActivity.LibraryListener {
      */
     private fun leadingFor(category: Row?): RowAdapter.Leading = when {
         category != null -> RowAdapter.Leading.ICON
-        section == Section.ARTISTS || section == Section.ALBUM_ARTISTS || section == Section.PLAYLISTS ->
+        section == Section.ARTISTS || section == Section.ALBUM_ARTISTS || section == Section.PLAYLISTS || section == Section.GENRES ->
             RowAdapter.Leading.NONE
         else -> RowAdapter.Leading.ICON
     }
@@ -471,6 +472,7 @@ class BrowseFragment : Fragment(), MainActivity.LibraryListener {
             Section.ALBUMS -> if (category == null) "albums" to "" else "album" to category.filter
             Section.ARTISTS -> category?.let { "artist" to it.filter }
             Section.ALBUM_ARTISTS -> category?.let { "album_artist" to it.filter }
+            Section.GENRES -> category?.let { "genre" to it.filter }
             Section.FAVOURITES -> "favourites" to ""
             Section.PLAYLISTS -> category?.let { "playlist" to it.filter.removePrefix("M3U_") }
             Section.FOLDERS -> null
@@ -664,6 +666,8 @@ class BrowseFragment : Fragment(), MainActivity.LibraryListener {
             if (category == null) library.artists() else library.tracksOfArtist(category.filter)
         Section.ALBUM_ARTISTS ->
             if (category == null) library.albumArtists() else library.tracksOfAlbumArtist(category.filter)
+        Section.GENRES ->
+            if (category == null) library.genres() else library.tracksOfGenre(category.filter)
         Section.PLAYLISTS ->
             if (category == null) LiveLists.playlists(library) else LiveLists.playlistTracks(library, category.filter)
     }

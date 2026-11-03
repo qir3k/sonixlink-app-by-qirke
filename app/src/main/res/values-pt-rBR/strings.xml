@@ -123,4 +123,8 @@
     <string name="accent_slate">Grafite</string>
     <string name="accent_amber">Âmbar</string>
     <string name="accent_oled">Branco</string>
+
+    <string name="tab_genres">Gêneros</string>
+    <string name="action_tab_order">Ordem das abas</string>
+    <string name="reset_default">Redefinir</string>
 </resources>

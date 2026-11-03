@@ -128,4 +128,8 @@
     <string name="accent_amber">Amber</string>
     <string name="accent_oled">White</string>
 
+
+    <string name="tab_genres">Genres</string>
+    <string name="action_tab_order">Tab order</string>
+    <string name="reset_default">Reset</string>
 </resources>

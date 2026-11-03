@@ -125,4 +125,8 @@
     <string name="accent_slate">Асфальтовий</string>
     <string name="accent_amber">Бурштиновий</string>
     <string name="accent_oled">Білий</string>
+
+    <string name="tab_genres">Жанри</string>
+    <string name="action_tab_order">Порядок вкладок</string>
+    <string name="reset_default">Скинути</string>
 </resources>

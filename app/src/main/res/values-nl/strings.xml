@@ -123,4 +123,8 @@
     <string name="accent_slate">Leisteen</string>
     <string name="accent_amber">Okergeel</string>
     <string name="accent_oled">Wit</string>
+
+    <string name="tab_genres">Genres</string>
+    <string name="action_tab_order">Tabbladvolgorde</string>
+    <string name="reset_default">Herstellen</string>
 </resources>

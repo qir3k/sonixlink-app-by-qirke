@@ -21,6 +21,18 @@ object Settings {
     private const val KEY_ASKED_NOTIFICATIONS = "asked_notifications"
 
     const val ACCENT_PREF_DEVICE = "device"
+    private const val KEY_TAB_ORDER = "tab_order"
+
+    val DEFAULT_TAB_ORDER: List<Section> = listOf(
+        Section.TRACKS,
+        Section.ALBUMS,
+        Section.ARTISTS,
+        Section.ALBUM_ARTISTS,
+        Section.GENRES,
+        Section.PLAYLISTS,
+        Section.FAVOURITES,
+        Section.FOLDERS,
+    )
 
     fun lastHost(context: Context): Pair<String, Int>? {
         val preferences = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -121,6 +133,29 @@ object Settings {
     fun rememberAskedNotifications(context: Context) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
             .putBoolean(KEY_ASKED_NOTIFICATIONS, true)
+            .apply()
+    }
+
+    fun tabOrder(context: Context): List<Section> {
+        val raw = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_TAB_ORDER, null)
+        if (raw.isNullOrBlank()) return DEFAULT_TAB_ORDER
+        val saved = raw.split(",").mapNotNull { name ->
+            try { Section.valueOf(name.trim()) } catch (e: Exception) { null }
+        }.distinct()
+        if (saved.isEmpty()) return DEFAULT_TAB_ORDER
+        val missing = DEFAULT_TAB_ORDER.filter { it !in saved }
+        return saved + missing
+    }
+
+    fun rememberTabOrder(context: Context, sections: List<Section>) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+            .putString(KEY_TAB_ORDER, sections.joinToString(",") { it.name })
+            .apply()
+    }
+
+    fun resetTabOrder(context: Context) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+            .remove(KEY_TAB_ORDER)
             .apply()
     }
 
