@@ -1,8 +1,5 @@
 name: Tests
 
-# Focused test and build suite run on dev pushes and pull requests.
-# Develop on dev without cutting a release; merging dev into main starts the release build.
-
 on:
   workflow_dispatch:
   push:
@@ -38,4 +35,10 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log || {
+            echo "::error::Gradle build failed"
+            tail -n 100 build.log
+            exit 1
+          }
