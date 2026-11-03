@@ -92,6 +92,8 @@ class PlayerClient(val host: String, val port: Int = DEFAULT_PORT) {
             dbHash = json.optString("db_hash", ""),
             coversHash = json.optString("covers_hash", ""),
             sort = SortPrefs.fromJson(json.optJSONObject("sort")),
+            favStar = if (json.has("fav_star")) json.optBoolean("fav_star") else null,
+            favMark = json.optString("fav_mark", "").ifEmpty { json.optString("fav_icon", "") },
         )
     }
 
@@ -129,6 +131,8 @@ class PlayerClient(val host: String, val port: Int = DEFAULT_PORT) {
             favouritesRevision = json.optLong("favourites_revision", -1),
             playlistsRevision = json.optLong("playlists_revision", -1),
             historyRevision = json.optLong("history_revision", -1),
+            favStar = if (json.has("fav_star")) json.optBoolean("fav_star") else null,
+            favMark = json.optString("fav_mark", "").ifEmpty { json.optString("fav_icon", "") },
         )
     }
 

@@ -14,3 +14,10 @@ app/.DS_Store
 app/src/.DS_Store
 gradle/.DS_Store
 Thumbs.db
+
+# Local tooling & agents
+.freebuff/
+freebuff/
+.kilo/
+kilo/
+repomix-output.xml

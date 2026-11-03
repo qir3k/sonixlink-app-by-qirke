@@ -129,4 +129,9 @@
     <string name="tab_genres">Žánry</string>
     <string name="action_tab_order">Pořadí záložek</string>
     <string name="reset_default">Obnovit</string>
+    <string name="action_fav_mark">Ikona oblíbených</string>
+    <string name="fav_mark_device">Automaticky (z přehrávače)</string>
+    <string name="fav_mark_heart">Srdce</string>
+    <string name="fav_mark_star">Hvězda</string>
+    <string name="min_tabs_warning">Alespoň jedna záložka musí zůstat povolená</string>
 </resources>

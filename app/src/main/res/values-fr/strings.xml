@@ -125,4 +125,9 @@
     <string name="tab_genres">Genres</string>
     <string name="action_tab_order">Ordre des onglets</string>
     <string name="reset_default">Réinitialiser</string>
+    <string name="action_fav_mark">Icône de favori</string>
+    <string name="fav_mark_device">Automatique (du lecteur)</string>
+    <string name="fav_mark_heart">Cœur</string>
+    <string name="fav_mark_star">Étoile</string>
+    <string name="min_tabs_warning">Au moins un onglet doit rester activé</string>
 </resources>

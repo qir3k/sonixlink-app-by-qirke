@@ -142,7 +142,8 @@ class MainActivity : AppCompatActivity() {
         TabLayoutMediator(views.tabs, views.pager) { tab, position ->
             val section = sections[position]
             tab.setText(section.titleRes)
-            tab.setIcon(section.icon)
+            val icon = if (section == Section.FAVOURITES) AppearancePreferences.favouriteTabIcon(this) else section.icon
+            tab.setIcon(icon)
         }.attach()
 
         // Selected so the marquee scrolls text that does not fit.
@@ -447,6 +448,12 @@ class MainActivity : AppCompatActivity() {
             if (!first) listeners.toList().forEach { it.onPlaylistsChanged() }
         }
         listeners.toList().forEach { it.onNowPlaying(state) }
+        if (state.favStar != null) {
+            val mark = if (state.favStar) Settings.FAV_MARK_PREF_STAR else Settings.FAV_MARK_PREF_HEART
+            Settings.rememberDeviceFavMark(this@MainActivity, mark)
+        } else if (state.favMark.isNotEmpty()) {
+            Settings.rememberDeviceFavMark(this@MainActivity, state.favMark)
+        }
         if (state.accent.isNotEmpty()) {
             Settings.rememberDeviceAccent(this@MainActivity, state.accent)
             if (Settings.accentPreference(this@MainActivity) == Settings.ACCENT_PREF_DEVICE) {
@@ -507,7 +514,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showFavourite(starred: Boolean) {
         views.favouriteButton.setImageResource(
-            if (starred) R.drawable.ic_favourite_filled else R.drawable.ic_favourite
+            AppearancePreferences.favouriteIcon(this, starred)
         )
         views.favouriteButton.imageTintList = android.content.res.ColorStateList.valueOf(
             androidx.core.content.ContextCompat.getColor(
@@ -568,6 +575,13 @@ class MainActivity : AppCompatActivity() {
 
         R.id.action_tab_order -> {
             AppearancePreferences.showTabOrderDialog(this) {
+                recreate()
+            }
+            true
+        }
+
+        R.id.action_fav_mark -> {
+            AppearancePreferences.showFavMarkDialog(this) {
                 recreate()
             }
             true

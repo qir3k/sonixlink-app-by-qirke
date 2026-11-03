@@ -129,4 +129,9 @@
     <string name="tab_genres">Gatunki</string>
     <string name="action_tab_order">Kolejność kart</string>
     <string name="reset_default">Resetuj</string>
+    <string name="action_fav_mark">Ikona ulubionych</string>
+    <string name="fav_mark_device">Automatycznie (z odtwarzacza)</string>
+    <string name="fav_mark_heart">Serce</string>
+    <string name="fav_mark_star">Gwiazdka</string>
+    <string name="min_tabs_warning">Przynajmniej jedna zakładka musi pozostać włączona</string>
 </resources>

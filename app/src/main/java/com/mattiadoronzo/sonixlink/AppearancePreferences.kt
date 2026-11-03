@@ -150,8 +150,44 @@ object AppearancePreferences {
             .show()
     }
 
+    fun favouriteIcon(context: android.content.Context, starred: Boolean): Int {
+        val mark = Settings.effectiveFavMark(context)
+        return if (mark == Settings.FAV_MARK_PREF_STAR) {
+            if (starred) R.drawable.ic_favourite_filled else R.drawable.ic_favourite
+        } else {
+            if (starred) R.drawable.ic_favourite_heart_filled else R.drawable.ic_favourite_heart
+        }
+    }
+
+    fun favouriteTabIcon(context: android.content.Context): Int {
+        val mark = Settings.effectiveFavMark(context)
+        return if (mark == Settings.FAV_MARK_PREF_STAR) R.drawable.ic_favourite else R.drawable.ic_favourite_heart
+    }
+
+    fun showFavMarkDialog(activity: AppCompatActivity, onMarkChanged: () -> Unit) {
+        val current = Settings.favMarkPreference(activity)
+        val options = listOf(
+            Settings.FAV_MARK_PREF_DEVICE to R.string.fav_mark_device,
+            Settings.FAV_MARK_PREF_HEART to R.string.fav_mark_heart,
+            Settings.FAV_MARK_PREF_STAR to R.string.fav_mark_star,
+        )
+        val selectedIdx = options.indexOfFirst { it.first == current }.coerceAtLeast(0)
+        val labels = options.map { activity.getString(it.second) }.toTypedArray()
+
+        MaterialAlertDialogBuilder(activity)
+            .setTitle(R.string.action_fav_mark)
+            .setSingleChoiceItems(labels, selectedIdx) { dialog, which ->
+                Settings.rememberFavMarkPreference(activity, options[which].first)
+                onMarkChanged()
+                dialog.dismiss()
+            }
+            .setNegativeButton(R.string.crash_dismiss, null)
+            .show()
+    }
+
     fun showTabOrderDialog(activity: AppCompatActivity, onOrderChanged: () -> Unit) {
-        val currentOrder = Settings.tabOrder(activity).toMutableList()
+        val currentOrder = Settings.allTabsInOrder(activity).toMutableList()
+        val disabled = Settings.disabledTabs(activity).toMutableSet()
         val density = activity.resources.displayMetrics.density
         val paddingPx = (8 * density).toInt()
 
@@ -166,6 +202,7 @@ object AppearancePreferences {
 
         val adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             inner class TabViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
+                val checkbox: com.google.android.material.checkbox.MaterialCheckBox = view.findViewById(R.id.tabCheckbox)
                 val icon: ImageView = view.findViewById(R.id.tabIcon)
                 val name: TextView = view.findViewById(R.id.tabName)
                 val up: ImageButton = view.findViewById(R.id.btnMoveUp)
@@ -183,9 +220,35 @@ object AppearancePreferences {
             override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
                 val vh = holder as TabViewHolder
                 val section = currentOrder[position]
-                vh.icon.setImageResource(section.icon)
+                val isEnabled = section !in disabled
+
+                val iconRes = if (section == Section.FAVOURITES) favouriteTabIcon(activity) else section.icon
+                vh.icon.setImageResource(iconRes)
                 vh.icon.imageTintList = ColorStateList.valueOf(ContextCompat.getColor(activity, R.color.text_secondary))
                 vh.name.setText(section.titleRes)
+
+                vh.checkbox.setOnCheckedChangeListener(null)
+                vh.checkbox.isChecked = isEnabled
+                vh.icon.alpha = if (isEnabled) 1.0f else 0.4f
+                vh.name.alpha = if (isEnabled) 1.0f else 0.4f
+
+                vh.checkbox.setOnCheckedChangeListener { _, isChecked ->
+                    if (!isChecked) {
+                        val enabledCount = currentOrder.count { it !in disabled }
+                        if (enabledCount <= 1) {
+                            vh.checkbox.isChecked = true
+                            android.widget.Toast.makeText(activity, R.string.min_tabs_warning, android.widget.Toast.LENGTH_SHORT).show()
+                            return@setOnCheckedChangeListener
+                        }
+                        disabled.add(section)
+                    } else {
+                        disabled.remove(section)
+                    }
+                    vh.icon.alpha = if (isChecked) 1.0f else 0.4f
+                    vh.name.alpha = if (isChecked) 1.0f else 0.4f
+                    changed = true
+                    Settings.rememberTabs(activity, currentOrder, disabled)
+                }
 
                 val canUp = position > 0
                 vh.up.isEnabled = canUp
@@ -202,7 +265,7 @@ object AppearancePreferences {
                         notifyItemMoved(pos, pos - 1)
                         notifyItemRangeChanged(pos - 1, 2)
                         changed = true
-                        Settings.rememberTabOrder(activity, currentOrder)
+                        Settings.rememberTabs(activity, currentOrder, disabled)
                     }
                 }
 
@@ -213,7 +276,7 @@ object AppearancePreferences {
                         notifyItemMoved(pos, pos + 1)
                         notifyItemRangeChanged(pos, 2)
                         changed = true
-                        Settings.rememberTabOrder(activity, currentOrder)
+                        Settings.rememberTabs(activity, currentOrder, disabled)
                     }
                 }
 
@@ -241,7 +304,7 @@ object AppearancePreferences {
                     adapter.notifyItemMoved(from, to)
                     adapter.notifyItemRangeChanged(minOf(from, to), abs(from - to) + 1)
                     changed = true
-                    Settings.rememberTabOrder(activity, currentOrder)
+                    Settings.rememberTabs(activity, currentOrder, disabled)
                 }
                 return true
             }

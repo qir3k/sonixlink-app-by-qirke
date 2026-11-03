@@ -127,4 +127,9 @@
     <string name="tab_genres">Gêneros</string>
     <string name="action_tab_order">Ordem das abas</string>
     <string name="reset_default">Redefinir</string>
+    <string name="action_fav_mark">Ícone de favoritos</string>
+    <string name="fav_mark_device">Automático (do reprodutor)</string>
+    <string name="fav_mark_heart">Coração</string>
+    <string name="fav_mark_star">Estrela</string>
+    <string name="min_tabs_warning">Pelo menos uma aba deve permanecer ativada</string>
 </resources>

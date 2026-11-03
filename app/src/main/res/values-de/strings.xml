@@ -125,4 +125,9 @@
     <string name="tab_genres">Genres</string>
     <string name="action_tab_order">Tab-Reihenfolge</string>
     <string name="reset_default">Zurücksetzen</string>
+    <string name="action_fav_mark">Favoriten-Symbol</string>
+    <string name="fav_mark_device">Automatisch (vom Player)</string>
+    <string name="fav_mark_heart">Herz</string>
+    <string name="fav_mark_star">Stern</string>
+    <string name="min_tabs_warning">Mindestens ein Tab muss aktiviert bleiben</string>
 </resources>

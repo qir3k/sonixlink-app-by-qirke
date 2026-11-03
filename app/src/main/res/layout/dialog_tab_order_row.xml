@@ -4,14 +4,20 @@
     android:layout_height="52dp"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingStart="16dp"
-    android:paddingEnd="12dp">
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp">
+
+    <com.google.android.material.checkbox.MaterialCheckBox
+        android:id="@+id/tabCheckbox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="4dp" />
 
     <ImageView
         android:id="@+id/tabIcon"
         android:layout_width="24dp"
         android:layout_height="24dp"
-        android:layout_marginEnd="16dp"
+        android:layout_marginEnd="12dp"
         android:contentDescription="@null" />
 
     <TextView

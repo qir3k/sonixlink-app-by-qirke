@@ -14,6 +14,11 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_fav_mark"
+        android:title="@string/action_fav_mark"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_accent"
         android:title="@string/action_accent"
         app:showAsAction="never" />

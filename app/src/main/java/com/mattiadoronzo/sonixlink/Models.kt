@@ -60,6 +60,8 @@ data class PlayerInfo(
     val coversHash: String = "",
     /** How the player orders its lists. Null from a player that does not say. */
     val sort: SortPrefs? = null,
+    val favStar: Boolean? = null,
+    val favMark: String = "",
 ) {
     /** The player, for remembering whose files the phone holds. */
     fun identity(host: String): String = serial.ifEmpty { host }
@@ -132,6 +134,8 @@ data class PlayerState(
     val playlistsRevision: Long = -1,
     /** The newest entry of the history; -1 from a player that does not send it. */
     val historyRevision: Long = -1,
+    val favStar: Boolean? = null,
+    val favMark: String = "",
 ) {
     val isPlaying: Boolean get() = playState == 1
     val hasTrack: Boolean get() = title.isNotEmpty() || path.isNotEmpty()

@@ -129,4 +129,9 @@
     <string name="tab_genres">Жанри</string>
     <string name="action_tab_order">Порядок вкладок</string>
     <string name="reset_default">Скинути</string>
+    <string name="action_fav_mark">Значок улюбленого</string>
+    <string name="fav_mark_device">Автоматично (з плеєра)</string>
+    <string name="fav_mark_heart">Серце</string>
+    <string name="fav_mark_star">Зірка</string>
+    <string name="min_tabs_warning">Принаймні одна вкладка має залишатися увімкненою</string>
 </resources>

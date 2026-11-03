@@ -126,4 +126,9 @@
     <string name="tab_genres">ジャンル</string>
     <string name="action_tab_order">タブの順序</string>
     <string name="reset_default">リセット</string>
+    <string name="action_fav_mark">お気に入りアイコン</string>
+    <string name="fav_mark_device">自動（プレーヤーから）</string>
+    <string name="fav_mark_heart">ハート</string>
+    <string name="fav_mark_star">スター</string>
+    <string name="min_tabs_warning">少なくとも1つのタブを有効にしておく必要があります</string>
 </resources>

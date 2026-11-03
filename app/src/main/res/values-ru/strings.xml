@@ -127,4 +127,9 @@
     <string name="tab_genres">Жанры</string>
     <string name="action_tab_order">Порядок вкладок</string>
     <string name="reset_default">Сброс</string>
+    <string name="action_fav_mark">Значок избранного</string>
+    <string name="fav_mark_device">Автоматически (с плеера)</string>
+    <string name="fav_mark_heart">Сердце</string>
+    <string name="fav_mark_star">Звезда</string>
+    <string name="min_tabs_warning">Должна быть включена хотя бы одна вкладка</string>
 </resources>

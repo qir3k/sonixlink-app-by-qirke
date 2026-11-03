@@ -406,7 +406,7 @@ class NowPlayingActivity : AppCompatActivity() {
 
     private fun showFavourite(starred: Boolean) {
         views.favouriteButton.setImageResource(
-            if (starred) R.drawable.ic_favourite_filled else R.drawable.ic_favourite
+            AppearancePreferences.favouriteIcon(this, starred)
         )
         views.favouriteButton.imageTintList = android.content.res.ColorStateList.valueOf(
             androidx.core.content.ContextCompat.getColor(

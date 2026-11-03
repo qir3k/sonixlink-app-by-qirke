@@ -130,4 +130,9 @@
     <string name="tab_genres">Generi</string>
     <string name="action_tab_order">Ordine schede</string>
     <string name="reset_default">Ripristina</string>
+    <string name="action_fav_mark">Icona preferiti</string>
+    <string name="fav_mark_device">Automatico (dal lettore)</string>
+    <string name="fav_mark_heart">Cuore</string>
+    <string name="fav_mark_star">Stella</string>
+    <string name="min_tabs_warning">Almeno una scheda deve rimanere abilitata</string>
 </resources>

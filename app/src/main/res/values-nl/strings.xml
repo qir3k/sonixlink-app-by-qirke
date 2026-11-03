@@ -127,4 +127,9 @@
     <string name="tab_genres">Genres</string>
     <string name="action_tab_order">Tabbladvolgorde</string>
     <string name="reset_default">Herstellen</string>
+    <string name="action_fav_mark">Favorietenpictogram</string>
+    <string name="fav_mark_device">Automatisch (van speler)</string>
+    <string name="fav_mark_heart">Hart</string>
+    <string name="fav_mark_star">Ster</string>
+    <string name="min_tabs_warning">Er moet minimaal één tabblad ingeschakeld blijven</string>
 </resources>

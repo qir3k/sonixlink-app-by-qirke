@@ -125,4 +125,9 @@
     <string name="tab_genres">Géneros</string>
     <string name="action_tab_order">Orden de pestañas</string>
     <string name="reset_default">Restablecer</string>
+    <string name="action_fav_mark">Icono de favoritos</string>
+    <string name="fav_mark_device">Automático (del reproductor)</string>
+    <string name="fav_mark_heart">Corazón</string>
+    <string name="fav_mark_star">Estrella</string>
+    <string name="min_tabs_warning">Al menos una pestaña debe permanecer habilitada</string>
 </resources>
