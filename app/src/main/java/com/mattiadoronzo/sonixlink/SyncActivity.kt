@@ -48,8 +48,8 @@ class SyncActivity : AppCompatActivity() {
 
         client = PlayerClient(host, port)
         Session.client = client
-        // The last known accent, until the player reports its own.
-        Settings.accent(this).takeIf { it.isNotEmpty() }?.let { Session.accent = Session.parseAccent(it) }
+        // The effective accent based on preference and cached device accent.
+        Session.accent = Settings.effectiveAccent(this)
         // Always new instances: the calling screen may close the previous ones
         // when it finishes.
         Session.library?.close()
@@ -96,8 +96,10 @@ class SyncActivity : AppCompatActivity() {
             // Set before the main screen opens, so it does not start with the
             // default color and switch.
             if (info.accent.isNotEmpty()) {
-                Session.accent = Session.parseAccent(info.accent)
-                withContext(Dispatchers.IO) { Settings.rememberAccent(this@SyncActivity, info.accent) }
+                withContext(Dispatchers.IO) { Settings.rememberDeviceAccent(this@SyncActivity, info.accent) }
+                if (Settings.accentPreference(this@SyncActivity) == Settings.ACCENT_PREF_DEVICE) {
+                    Session.accent = Session.parseAccent(info.accent)
+                }
             }
             done()
         }

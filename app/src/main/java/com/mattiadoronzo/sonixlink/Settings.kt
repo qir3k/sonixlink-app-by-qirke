@@ -16,7 +16,11 @@ object Settings {
     private const val KEY_COVERS_OWNER = "covers_owner"
     private const val KEY_COVERS_VERSION = "covers_version"
     private const val KEY_ACCENT = "accent"
+    private const val KEY_ACCENT_PREF = "accent_preference"
+    private const val KEY_DEVICE_ACCENT = "device_accent"
     private const val KEY_ASKED_NOTIFICATIONS = "asked_notifications"
+
+    const val ACCENT_PREF_DEVICE = "device"
 
     fun lastHost(context: Context): Pair<String, Int>? {
         val preferences = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -70,6 +74,44 @@ object Settings {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
             .putString(KEY_ACCENT, accent)
             .apply()
+    }
+
+    /**
+     * User's accent preference: "device" (default) or a specific hex color like "#3584e4".
+     */
+    fun accentPreference(context: Context): String =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_ACCENT_PREF, ACCENT_PREF_DEVICE) ?: ACCENT_PREF_DEVICE
+
+    fun rememberAccentPreference(context: Context, pref: String) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+            .putString(KEY_ACCENT_PREF, pref)
+            .apply()
+    }
+
+    /**
+     * The accent reported by the connected device/player.
+     */
+    fun deviceAccent(context: Context): String =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_DEVICE_ACCENT, "").orEmpty()
+
+    fun rememberDeviceAccent(context: Context, accentHex: String) {
+        if (accentHex.isBlank()) return
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+            .putString(KEY_DEVICE_ACCENT, accentHex)
+            .putString(KEY_ACCENT, accentHex)
+            .apply()
+    }
+
+    /**
+     * Computes the effective accent color based on user preference and player state.
+     */
+    fun effectiveAccent(context: Context, incomingDeviceHex: String = ""): Int {
+        val pref = accentPreference(context)
+        if (pref != ACCENT_PREF_DEVICE) {
+            return Session.parseAccent(pref)
+        }
+        val devHex = incomingDeviceHex.ifEmpty { deviceAccent(context).ifEmpty { accent(context) } }
+        return if (devHex.isNotEmpty()) Session.parseAccent(devHex) else Session.DEFAULT_ACCENT
     }
 
     /** Whether the notification permission has been asked for already. */

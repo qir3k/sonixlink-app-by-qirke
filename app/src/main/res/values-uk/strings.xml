@@ -1,0 +1,128 @@
+<resources>
+    <string name="connect_title">Пошук плеєра</string>
+    <string name="connect_searching">Пошук…</string>
+    <string name="connect_none">Плеєр не знайдено. Переконайтеся, що на плеєрі увімкнено SonixLink, а телефон підключений до тієї самої мережі Wi-Fi.</string>
+    <string name="connect_rescan">Шукати знову</string>
+    <string name="connect_failed">Немає відповіді: %1$s</string>
+    <string name="connect_bluetooth">Підключитися через Bluetooth</string>
+    <string name="bluetooth_pick">Спарені пристрої</string>
+    <string name="bluetooth_none">Немає спарених пристроїв. Увімкніть Bluetooth і SonixLink на плеєрі, а потім з'єднайте його в налаштуваннях Bluetooth телефону.</string>
+    <string name="bluetooth_off">Bluetooth на телефоні вимкнено.</string>
+    <string name="bluetooth_denied">Без дозволу на Bluetooth додаток не може з'єднатися з плеєром.</string>
+
+    <string name="crash_title">Додаток завершив роботу</string>
+    <string name="crash_copy">Копіювати</string>
+    <string name="crash_dismiss">Закрити</string>
+
+    <plurals name="players_found">
+        <item quantity="one">Знайдено %1$d плеєр</item>
+        <item quantity="few">Знайдено %1$d плеєри</item>
+        <item quantity="many">Знайдено %1$d плеєрів</item>
+        <item quantity="other">Знайдено %1$d плеєрів</item>
+    </plurals>
+
+    <string name="tab_tracks">Треки</string>
+    <string name="tab_albums">Альбоми</string>
+    <string name="tab_artists">Виконавці</string>
+    <string name="tab_album_artists">Виконавці альбомів</string>
+    <string name="tab_playlists">Плейлисти</string>
+    <string name="tab_favourites">Улюблене</string>
+    <string name="tab_folders">Папки</string>
+
+    <string name="downloading">Завантаження індексу…</string>
+    <string name="downloading_progress">Завантаження індексу… %1$d%%</string>
+    <string name="download_failed">Не вдалося завантажити індекс: %1$s</string>
+    <string name="library_ready">%1$d треків</string>
+    <string name="scanning_wait">Плеєр сканує медіатеку. Спробуйте знову після завершення.</string>
+    <string name="empty_list">Тут нічого немає.</string>
+    <string name="tracks_count">%1$d треків</string>
+    <string name="nothing_playing">Нічого не відтворюється</string>
+    <string name="refresh_library">Оновити індекс</string>
+    <string name="disconnect">Змінити пристрій</string>
+    <string name="search_hint">Пошук</string>
+    <string name="search_title">Пошук</string>
+    <string name="search_nothing">Нічого не знайдено.</string>
+    <string name="command_failed">Плеєр не відповів.</string>
+    <string name="playing_now">Зараз грає</string>
+    <string name="syncing">Синхронізація треків…</string>
+    <string name="sync_library">Завантаження індексу медіатеки</string>
+    <string name="sync_covers">Завантаження обкладинок</string>
+    <string name="sync_unreachable">Плеєр не відповідає.</string>
+    <string name="sync_no_library">Не вдалося завантажити індекс.</string>
+    <string name="retry">Спробувати знову</string>
+
+    <string name="notification_channel">Відтворення на плеєрі</string>
+    <string name="notification_channel_description">Трек, що грає на плеєрі, з елементами керування.</string>
+    <string name="notification_connected">Підключено до %1$s</string>
+    <string name="notification_disconnect">Відключити</string>
+
+    <string name="cd_play_menu">Відтворити все</string>
+    <string name="play_random">Випадковий порядок</string>
+    <string name="play_sequence">По порядку</string>
+    <string name="play_random_track">Додати випадковий трек до черги</string>
+    <string name="selected_count">Вибрано: %1$d</string>
+    <string name="sel_queue">Додати до черги</string>
+    <string name="sel_fav_add">Додати до улюбленого</string>
+    <string name="sel_playlist_add">Додати до плейлиста</string>
+    <string name="sel_fav_remove">Видалити з улюбленого</string>
+    <string name="sel_playlist_remove">Видалити з плейлиста</string>
+    <string name="done_queue">Додано до черги</string>
+    <string name="done_fav">Додано до улюбленого</string>
+    <string name="done_playlist">Треки додано</string>
+    <string name="done_removed">Треки видалено</string>
+    <string name="playlist_new">Новий плейлист</string>
+    <string name="playlist_name_hint">Назва плейлиста</string>
+    <string name="sync_progress">%1$s з %2$s</string>
+
+    <string name="queue_title">Черга</string>
+    <string name="queue_position">%1$d з %2$d</string>
+    <string name="queue_empty">Черга порожня.</string>
+    <string name="queue_now_playing">Зараз грає</string>
+    <string name="queue_history">Історія</string>
+    <string name="history_today">Сьогодні</string>
+    <string name="history_yesterday">Вчора</string>
+    <string name="done_queue_removed">Видалено з черги</string>
+    <string name="cd_select">Вибрати</string>
+    <string name="cd_reorder">Змінити порядок</string>
+    <string name="cd_remove">Видалити</string>
+
+    <string name="mode_normal">По порядку</string>
+    <string name="mode_repeat_all">Повторювати все</string>
+    <string name="mode_repeat_one">Повторювати один</string>
+    <string name="mode_shuffle">Випадково</string>
+    <string name="mode_shuffle_repeat">Випадково з повтором</string>
+    <string name="mode_changed">%1$s</string>
+
+    <string name="cd_play">Відтворити</string>
+    <string name="cd_pause">Пауза</string>
+    <string name="cd_next">Наступний</string>
+    <string name="cd_prev">Попередній</string>
+    <string name="cd_mode">Режим відтворення</string>
+    <string name="cd_volume">Гучність</string>
+    <string name="cd_favourite">Улюблене</string>
+    <string name="cd_queue">Черга</string>
+    <string name="cd_back">Назад</string>
+    <string name="cd_close">Закрити</string>
+    <string name="volume_label">Гучність %1$d</string>
+
+    <string name="action_accent">Колір акценту</string>
+    <string name="action_language">Мова</string>
+    <string name="language_title">Виберіть мову</string>
+    <string name="language_system">За замовчуванням</string>
+    <string name="accent_title">Колір акценту</string>
+    <string name="accent_from_player">З плеєра (за замовчуванням)</string>
+    <string name="accent_blue">Синій</string>
+    <string name="accent_red">Червоний</string>
+    <string name="accent_orange">Помаранчевий</string>
+    <string name="accent_yellow">Жовтий</string>
+    <string name="accent_lime">Лайм</string>
+    <string name="accent_green">Зелений</string>
+    <string name="accent_cyan">Ціан</string>
+    <string name="accent_indigo">Індиго</string>
+    <string name="accent_purple">Фіолетовий</string>
+    <string name="accent_pink">Рожевий</string>
+    <string name="accent_brown">Коричневий</string>
+    <string name="accent_slate">Асфальтовий</string>
+    <string name="accent_amber">Бурштиновий</string>
+    <string name="accent_oled">Білий</string>
+</resources>

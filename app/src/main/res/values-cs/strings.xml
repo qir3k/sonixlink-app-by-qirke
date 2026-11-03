@@ -1,0 +1,128 @@
+<resources>
+    <string name="connect_title">Najít přehrávač</string>
+    <string name="connect_searching">Vyhledávání…</string>
+    <string name="connect_none">Přehrávač nebyl nalezen. Zkontrolujte, zda je v přehrávači zapnutý SonixLink a zda je telefon připojen ke stejné síti Wi-Fi.</string>
+    <string name="connect_rescan">Hledat znovu</string>
+    <string name="connect_failed">Žádná odpověď: %1$s</string>
+    <string name="connect_bluetooth">Připojit přes Bluetooth</string>
+    <string name="bluetooth_pick">Spárovaná zařízení</string>
+    <string name="bluetooth_none">Žádné spárované zařízení. Zapněte Bluetooth a SonixLink na přehrávači a poté jej spárujte v nastavení Bluetooth telefonu.</string>
+    <string name="bluetooth_off">Bluetooth v telefonu je vypnuté.</string>
+    <string name="bluetooth_denied">Bez oprávnění k Bluetooth se aplikace nemůže spojit s přehrávačem.</string>
+
+    <string name="crash_title">Aplikace byla ukončena</string>
+    <string name="crash_copy">Kopírovat</string>
+    <string name="crash_dismiss">Zavřít</string>
+
+    <plurals name="players_found">
+        <item quantity="one">Nalezen %1$d přehrávač</item>
+        <item quantity="few">Nalezeny %1$d přehrávače</item>
+        <item quantity="many">Nalezeno %1$d přehrávačů</item>
+        <item quantity="other">Nalezeno %1$d přehrávačů</item>
+    </plurals>
+
+    <string name="tab_tracks">Skladby</string>
+    <string name="tab_albums">Alba</string>
+    <string name="tab_artists">Umělci</string>
+    <string name="tab_album_artists">Umělci alb</string>
+    <string name="tab_playlists">Seznamy skladeb</string>
+    <string name="tab_favourites">Oblíbené</string>
+    <string name="tab_folders">Složky</string>
+
+    <string name="downloading">Stahování indexu…</string>
+    <string name="downloading_progress">Stahování indexu… %1$d%%</string>
+    <string name="download_failed">Index se nepodařilo stáhnout: %1$s</string>
+    <string name="library_ready">%1$d skladeb</string>
+    <string name="scanning_wait">Přehrávač prohledává knihovnu. Zkuste to znovu po dokončení.</string>
+    <string name="empty_list">Zde nic není.</string>
+    <string name="tracks_count">%1$d skladeb</string>
+    <string name="nothing_playing">Nic nehraje</string>
+    <string name="refresh_library">Obnovit index</string>
+    <string name="disconnect">Změnit zařízení</string>
+    <string name="search_hint">Hledat</string>
+    <string name="search_title">Hledat</string>
+    <string name="search_nothing">Žádné výsledky.</string>
+    <string name="command_failed">Přehrávač neodpověděl.</string>
+    <string name="playing_now">Právě hraje</string>
+    <string name="syncing">Synchronizace skladeb…</string>
+    <string name="sync_library">Stahování indexu knihovny</string>
+    <string name="sync_covers">Stahování obalů</string>
+    <string name="sync_unreachable">Přehrávač neodpovídá.</string>
+    <string name="sync_no_library">Index se nepodařilo stáhnout.</string>
+    <string name="retry">Zkusit znovu</string>
+
+    <string name="notification_channel">Přehrávání v přehrávači</string>
+    <string name="notification_channel_description">Skladba přehrávaná v přehrávači s ovládacími prvky.</string>
+    <string name="notification_connected">Připojeno k %1$s</string>
+    <string name="notification_disconnect">Odpojit</string>
+
+    <string name="cd_play_menu">Přehrát vše</string>
+    <string name="play_random">Přehrát náhodně</string>
+    <string name="play_sequence">Přehrát v pořadí</string>
+    <string name="play_random_track">Přidat náhodnou skladbu do fronty</string>
+    <string name="selected_count">Vybráno: %1$d</string>
+    <string name="sel_queue">Přidat do fronty</string>
+    <string name="sel_fav_add">Přidat do oblíbených</string>
+    <string name="sel_playlist_add">Přidat do seznamu skladeb</string>
+    <string name="sel_fav_remove">Odebrat z oblíbených</string>
+    <string name="sel_playlist_remove">Odebrat ze seznamu skladeb</string>
+    <string name="done_queue">Přidáno do fronty</string>
+    <string name="done_fav">Přidáno do oblíbených</string>
+    <string name="done_playlist">Skladby přidány</string>
+    <string name="done_removed">Skladby odebrány</string>
+    <string name="playlist_new">Nový seznam skladeb</string>
+    <string name="playlist_name_hint">Název seznamu skladeb</string>
+    <string name="sync_progress">%1$s z %2$s</string>
+
+    <string name="queue_title">Fronta</string>
+    <string name="queue_position">%1$d z %2$d</string>
+    <string name="queue_empty">Fronta je prázdná.</string>
+    <string name="queue_now_playing">Právě hraje</string>
+    <string name="queue_history">Historie</string>
+    <string name="history_today">Dnes</string>
+    <string name="history_yesterday">Včera</string>
+    <string name="done_queue_removed">Odebráno z fronty</string>
+    <string name="cd_select">Vybrat</string>
+    <string name="cd_reorder">Přeuspořádat</string>
+    <string name="cd_remove">Odebrat</string>
+
+    <string name="mode_normal">V pořadí</string>
+    <string name="mode_repeat_all">Opakovat vše</string>
+    <string name="mode_repeat_one">Opakovat jednu</string>
+    <string name="mode_shuffle">Náhodně</string>
+    <string name="mode_shuffle_repeat">Náhodně a opakovat</string>
+    <string name="mode_changed">%1$s</string>
+
+    <string name="cd_play">Přehrát</string>
+    <string name="cd_pause">Pozastavit</string>
+    <string name="cd_next">Další</string>
+    <string name="cd_prev">Předchozí</string>
+    <string name="cd_mode">Režim přehrávání</string>
+    <string name="cd_volume">Hlasitost</string>
+    <string name="cd_favourite">Oblíbené</string>
+    <string name="cd_queue">Fronta</string>
+    <string name="cd_back">Zpět</string>
+    <string name="cd_close">Zavřít</string>
+    <string name="volume_label">Hlasitost %1$d</string>
+
+    <string name="action_accent">Barva zvýraznění</string>
+    <string name="action_language">Jazyk</string>
+    <string name="language_title">Vyberte jazyk</string>
+    <string name="language_system">Výchozí podle systému</string>
+    <string name="accent_title">Barva zvýraznění</string>
+    <string name="accent_from_player">Z přehrávače (výchozí)</string>
+    <string name="accent_blue">Modrá</string>
+    <string name="accent_red">Červená</string>
+    <string name="accent_orange">Oranžová</string>
+    <string name="accent_yellow">Žlutá</string>
+    <string name="accent_lime">Limetková</string>
+    <string name="accent_green">Zelená</string>
+    <string name="accent_cyan">Azurová</string>
+    <string name="accent_indigo">Indigová</string>
+    <string name="accent_purple">Fialová</string>
+    <string name="accent_pink">Růžová</string>
+    <string name="accent_brown">Hnědá</string>
+    <string name="accent_slate">Břidlicová</string>
+    <string name="accent_amber">Jantarová</string>
+    <string name="accent_oled">Bílá</string>
+</resources>

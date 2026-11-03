@@ -311,13 +311,12 @@ class NowPlayingActivity : AppCompatActivity() {
         // The other screens' polls are stopped while this one is in front, so
         // it picks up accent changes for all of them.
         if (state.accent.isNotEmpty()) {
-            val color = Session.parseAccent(state.accent)
-            if (color != Session.accent) {
-                // Setting Session.accent notifies the watchers, which recolour
-                // this screen and the ones beneath it.
-                Session.accent = color
-                val text = state.accent
-                lifecycleScope.launch(Dispatchers.IO) { Settings.rememberAccent(this@NowPlayingActivity, text) }
+            Settings.rememberDeviceAccent(this@NowPlayingActivity, state.accent)
+            if (Settings.accentPreference(this@NowPlayingActivity) == Settings.ACCENT_PREF_DEVICE) {
+                val color = Session.parseAccent(state.accent)
+                if (color != Session.accent) {
+                    Session.accent = color
+                }
             }
         }
         show(state)

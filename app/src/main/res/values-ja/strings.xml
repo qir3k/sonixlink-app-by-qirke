@@ -1,0 +1,125 @@
+<resources>
+    <string name="connect_title">プレーヤーを検索</string>
+    <string name="connect_searching">検索中…</string>
+    <string name="connect_none">プレーヤーが見つかりません。プレーヤーでSonixLinkがオンになっており、スマートフォンが同じWi-Fiネットワーク上にあることを確認してください。</string>
+    <string name="connect_rescan">再検索</string>
+    <string name="connect_failed">応答がありません: %1$s</string>
+    <string name="connect_bluetooth">Bluetoothで接続</string>
+    <string name="bluetooth_pick">ペア設定された機器</string>
+    <string name="bluetooth_none">ペア設定された機器がありません。プレーヤーでBluetoothとSonixLinkをオンにし、スマートフォンのBluetooth設定でペアリングしてください。</string>
+    <string name="bluetooth_off">スマートフォンのBluetoothがオフです。</string>
+    <string name="bluetooth_denied">Bluetoothの権限がないと、アプリはプレーヤーに接続できません。</string>
+
+    <string name="crash_title">アプリが終了しました</string>
+    <string name="crash_copy">コピー</string>
+    <string name="crash_dismiss">閉じる</string>
+
+    <plurals name="players_found">
+        <item quantity="other">%1$d台のプレーヤーが見つかりました</item>
+    </plurals>
+
+    <string name="tab_tracks">曲</string>
+    <string name="tab_albums">アルバム</string>
+    <string name="tab_artists">アーティスト</string>
+    <string name="tab_album_artists">アルバムアーティスト</string>
+    <string name="tab_playlists">プレイリスト</string>
+    <string name="tab_favourites">お気に入り</string>
+    <string name="tab_folders">フォルダー</string>
+
+    <string name="downloading">インデックスをダウンロード中…</string>
+    <string name="downloading_progress">インデックスをダウンロード中… %1$d%%</string>
+    <string name="download_failed">インデックスをダウンロードできませんでした: %1$s</string>
+    <string name="library_ready">%1$d曲</string>
+    <string name="scanning_wait">プレーヤーがライブラリをスキャンしています。完了後に再試行してください。</string>
+    <string name="empty_list">ここに曲はありません。</string>
+    <string name="tracks_count">%1$d曲</string>
+    <string name="nothing_playing">再生中の曲はありません</string>
+    <string name="refresh_library">インデックスを更新</string>
+    <string name="disconnect">端末を変更</string>
+    <string name="search_hint">検索</string>
+    <string name="search_title">検索</string>
+    <string name="search_nothing">結果が見つかりません。</string>
+    <string name="command_failed">プレーヤーからの応答がありませんでした。</string>
+    <string name="playing_now">再生中</string>
+    <string name="syncing">曲を同期中…</string>
+    <string name="sync_library">ライブラリインデックスをダウンロード中</string>
+    <string name="sync_covers">カバー画像をダウンロード中</string>
+    <string name="sync_unreachable">プレーヤーが応答しません。</string>
+    <string name="sync_no_library">インデックスをダウンロードできませんでした。</string>
+    <string name="retry">再試行</string>
+
+    <string name="notification_channel">プレーヤーでの再生</string>
+    <string name="notification_channel_description">プレーヤーで再生中の曲と操作パネル。</string>
+    <string name="notification_connected">%1$s に接続中</string>
+    <string name="notification_disconnect">切断</string>
+
+    <string name="cd_play_menu">すべて再生</string>
+    <string name="play_random">シャッフル再生</string>
+    <string name="play_sequence">順番に再生</string>
+    <string name="play_random_track">ランダムな曲をキューに追加</string>
+    <string name="selected_count">%1$d件選択</string>
+    <string name="sel_queue">キューに追加</string>
+    <string name="sel_fav_add">お気に入りに追加</string>
+    <string name="sel_playlist_add">プレイリストに追加</string>
+    <string name="sel_fav_remove">お気に入りから削除</string>
+    <string name="sel_playlist_remove">プレイリストから削除</string>
+    <string name="done_queue">キューに追加しました</string>
+    <string name="done_fav">お気に入りに追加しました</string>
+    <string name="done_playlist">曲を追加しました</string>
+    <string name="done_removed">曲を削除しました</string>
+    <string name="playlist_new">新規プレイリスト</string>
+    <string name="playlist_name_hint">プレイリスト名</string>
+    <string name="sync_progress">%1$s / %2$s</string>
+
+    <string name="queue_title">キュー</string>
+    <string name="queue_position">%1$d / %2$d</string>
+    <string name="queue_empty">キューは空です。</string>
+    <string name="queue_now_playing">再生中</string>
+    <string name="queue_history">履歴</string>
+    <string name="history_today">今日</string>
+    <string name="history_yesterday">昨日</string>
+    <string name="done_queue_removed">キューから削除しました</string>
+    <string name="cd_select">選択</string>
+    <string name="cd_reorder">並べ替え</string>
+    <string name="cd_remove">削除</string>
+
+    <string name="mode_normal">順番通り</string>
+    <string name="mode_repeat_all">全曲リピート</string>
+    <string name="mode_repeat_one">1曲リピート</string>
+    <string name="mode_shuffle">シャッフル</string>
+    <string name="mode_shuffle_repeat">シャッフルリピート</string>
+    <string name="mode_changed">%1$s</string>
+
+    <string name="cd_play">再生</string>
+    <string name="cd_pause">一時停止</string>
+    <string name="cd_next">次へ</string>
+    <string name="cd_prev">前へ</string>
+    <string name="cd_mode">再生モード</string>
+    <string name="cd_volume">音量</string>
+    <string name="cd_favourite">お気に入り</string>
+    <string name="cd_queue">キュー</string>
+    <string name="cd_back">戻る</string>
+    <string name="cd_close">閉じる</string>
+    <string name="volume_label">音量 %1$d</string>
+
+    <string name="action_accent">アクセントカラー</string>
+    <string name="action_language">言語</string>
+    <string name="language_title">言語を選択</string>
+    <string name="language_system">システム既定</string>
+    <string name="accent_title">アクセントカラー</string>
+    <string name="accent_from_player">プレーヤーから（既定）</string>
+    <string name="accent_blue">ブルー</string>
+    <string name="accent_red">レッド</string>
+    <string name="accent_orange">オレンジ</string>
+    <string name="accent_yellow">イエロー</string>
+    <string name="accent_lime">ライム</string>
+    <string name="accent_green">グリーン</string>
+    <string name="accent_cyan">シアン</string>
+    <string name="accent_indigo">インディゴ</string>
+    <string name="accent_purple">パープル</string>
+    <string name="accent_pink">ピンク</string>
+    <string name="accent_brown">ブラウン</string>
+    <string name="accent_slate">スレート</string>
+    <string name="accent_amber">アンバー</string>
+    <string name="accent_oled">ホワイト</string>
+</resources>

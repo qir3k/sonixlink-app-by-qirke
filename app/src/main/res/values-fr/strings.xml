@@ -101,4 +101,24 @@
     <string name="cd_back">Retour</string>
     <string name="cd_close">Fermer</string>
     <string name="volume_label">Volume %1$d</string>
+<string name="action_accent">Couleur d'accent</string>
+    <string name="action_language">Langue</string>
+    <string name="language_title">Choisir la langue</string>
+    <string name="language_system">Langue du système</string>
+    <string name="accent_title">Couleur d'accent</string>
+    <string name="accent_from_player">Du lecteur (par défaut)</string>
+    <string name="accent_blue">Bleu</string>
+    <string name="accent_red">Rouge</string>
+    <string name="accent_orange">Orange</string>
+    <string name="accent_yellow">Jaune</string>
+    <string name="accent_lime">Citron vert</string>
+    <string name="accent_green">Vert</string>
+    <string name="accent_cyan">Cyan</string>
+    <string name="accent_indigo">Indigo</string>
+    <string name="accent_purple">Violet</string>
+    <string name="accent_pink">Rose</string>
+    <string name="accent_brown">Marron</string>
+    <string name="accent_slate">Ardoise</string>
+    <string name="accent_amber">Ambre</string>
+    <string name="accent_oled">Blanc</string>
 </resources>

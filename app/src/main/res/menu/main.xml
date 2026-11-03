@@ -9,6 +9,16 @@
         app:showAsAction="ifRoom" />
 
     <item
+        android:id="@+id/action_accent"
+        android:title="@string/action_accent"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_language"
+        android:title="@string/action_language"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_refresh"
         android:title="@string/refresh_library"
         app:showAsAction="never" />

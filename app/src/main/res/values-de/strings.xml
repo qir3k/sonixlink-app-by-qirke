@@ -101,4 +101,24 @@
     <string name="cd_back">Zurück</string>
     <string name="cd_close">Schließen</string>
     <string name="volume_label">Lautstärke %1$d</string>
+<string name="action_accent">Akzentfarbe</string>
+    <string name="action_language">Sprache</string>
+    <string name="language_title">Sprache auswählen</string>
+    <string name="language_system">Systemstandard</string>
+    <string name="accent_title">Akzentfarbe</string>
+    <string name="accent_from_player">Vom Player (Gerätestandard)</string>
+    <string name="accent_blue">Blau</string>
+    <string name="accent_red">Rot</string>
+    <string name="accent_orange">Orange</string>
+    <string name="accent_yellow">Gelb</string>
+    <string name="accent_lime">Limette</string>
+    <string name="accent_green">Grün</string>
+    <string name="accent_cyan">Cyan</string>
+    <string name="accent_indigo">Indigo</string>
+    <string name="accent_purple">Lila</string>
+    <string name="accent_pink">Rosa</string>
+    <string name="accent_brown">Braun</string>
+    <string name="accent_slate">Schiefergrau</string>
+    <string name="accent_amber">Bernstein</string>
+    <string name="accent_oled">Weiß</string>
 </resources>

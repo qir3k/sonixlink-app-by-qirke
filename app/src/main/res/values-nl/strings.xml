@@ -1,0 +1,126 @@
+<resources>
+    <string name="connect_title">Speler zoeken</string>
+    <string name="connect_searching">Zoeken…</string>
+    <string name="connect_none">Geen speler gevonden. Controleer of SonixLink aanstaat op de speler en of de telefoon op hetzelfde wifi-netwerk zit.</string>
+    <string name="connect_rescan">Opnieuw zoeken</string>
+    <string name="connect_failed">Geen antwoord: %1$s</string>
+    <string name="connect_bluetooth">Verbinden via Bluetooth</string>
+    <string name="bluetooth_pick">Gekoppelde apparaten</string>
+    <string name="bluetooth_none">Geen gekoppeld apparaat. Schakel Bluetooth en SonixLink in op de speler en koppel deze in de Bluetooth-instellingen van de telefoon.</string>
+    <string name="bluetooth_off">Bluetooth staat uit op de telefoon.</string>
+    <string name="bluetooth_denied">Zonder Bluetooth-toestemming kan de app de speler niet bereiken.</string>
+
+    <string name="crash_title">De app is afgesloten</string>
+    <string name="crash_copy">Kopiëren</string>
+    <string name="crash_dismiss">Sluiten</string>
+
+    <plurals name="players_found">
+        <item quantity="one">%1$d speler gevonden</item>
+        <item quantity="other">%1$d spelers gevonden</item>
+    </plurals>
+
+    <string name="tab_tracks">Nummers</string>
+    <string name="tab_albums">Albums</string>
+    <string name="tab_artists">Artiesten</string>
+    <string name="tab_album_artists">Albumartiesten</string>
+    <string name="tab_playlists">Afspeellijsten</string>
+    <string name="tab_favourites">Favorieten</string>
+    <string name="tab_folders">Mappen</string>
+
+    <string name="downloading">Index downloaden…</string>
+    <string name="downloading_progress">Index downloaden… %1$d%%</string>
+    <string name="download_failed">Kon de index niet downloaden: %1$s</string>
+    <string name="library_ready">%1$d nummers</string>
+    <string name="scanning_wait">De speler scant de bibliotheek. Probeer het opnieuw wanneer dit voltooid is.</string>
+    <string name="empty_list">Hier is niets.</string>
+    <string name="tracks_count">%1$d nummers</string>
+    <string name="nothing_playing">Er speelt niets</string>
+    <string name="refresh_library">Index vernieuwen</string>
+    <string name="disconnect">Ander apparaat</string>
+    <string name="search_hint">Zoeken</string>
+    <string name="search_title">Zoeken</string>
+    <string name="search_nothing">Geen resultaten.</string>
+    <string name="command_failed">De speler reageerde niet.</string>
+    <string name="playing_now">Nu aan het spelen</string>
+    <string name="syncing">Nummers synchroniseren…</string>
+    <string name="sync_library">Bibliotheekindex downloaden</string>
+    <string name="sync_covers">Hoezen downloaden</string>
+    <string name="sync_unreachable">De speler reageert niet.</string>
+    <string name="sync_no_library">Kon de index niet downloaden.</string>
+    <string name="retry">Opnieuw proberen</string>
+
+    <string name="notification_channel">Afspelen op de speler</string>
+    <string name="notification_channel_description">Het nummer dat op de speler wordt afgespeeld, met bediening.</string>
+    <string name="notification_connected">Verbonden met %1$s</string>
+    <string name="notification_disconnect">Verbinding verbreken</string>
+
+    <string name="cd_play_menu">Alles afspelen</string>
+    <string name="play_random">Willekeurig afspelen</string>
+    <string name="play_sequence">Op volgorde afspelen</string>
+    <string name="play_random_track">Willekeurig nummer toevoegen aan wachtrij</string>
+    <string name="selected_count">%1$d geselecteerd</string>
+    <string name="sel_queue">Aan wachtrij toevoegen</string>
+    <string name="sel_fav_add">Aan favorieten toevoegen</string>
+    <string name="sel_playlist_add">Aan afspeellijst toevoegen</string>
+    <string name="sel_fav_remove">Uit favorieten verwijderen</string>
+    <string name="sel_playlist_remove">Uit afspeellijst verwijderen</string>
+    <string name="done_queue">Toegevoegd aan wachtrij</string>
+    <string name="done_fav">Toegevoegd aan favorieten</string>
+    <string name="done_playlist">Nummers toegevoegd</string>
+    <string name="done_removed">Nummers verwijderd</string>
+    <string name="playlist_new">Nieuwe afspeellijst</string>
+    <string name="playlist_name_hint">Naam van afspeellijst</string>
+    <string name="sync_progress">%1$s van %2$s</string>
+
+    <string name="queue_title">Wachtrij</string>
+    <string name="queue_position">%1$d van %2$d</string>
+    <string name="queue_empty">De wachtrij is leeg.</string>
+    <string name="queue_now_playing">Nu aan het spelen</string>
+    <string name="queue_history">Geschiedenis</string>
+    <string name="history_today">Vandaag</string>
+    <string name="history_yesterday">Gisteren</string>
+    <string name="done_queue_removed">Verwijderd uit wachtrij</string>
+    <string name="cd_select">Selecteren</string>
+    <string name="cd_reorder">Volgorde wijzigen</string>
+    <string name="cd_remove">Verwijderen</string>
+
+    <string name="mode_normal">Op volgorde</string>
+    <string name="mode_repeat_all">Alles herhalen</string>
+    <string name="mode_repeat_one">Eén herhalen</string>
+    <string name="mode_shuffle">Shuffle</string>
+    <string name="mode_shuffle_repeat">Shuffle en herhalen</string>
+    <string name="mode_changed">%1$s</string>
+
+    <string name="cd_play">Afspelen</string>
+    <string name="cd_pause">Pauzeren</string>
+    <string name="cd_next">Volgende</string>
+    <string name="cd_prev">Vorige</string>
+    <string name="cd_mode">Afspeelmodus</string>
+    <string name="cd_volume">Volume</string>
+    <string name="cd_favourite">Favoriet</string>
+    <string name="cd_queue">Wachtrij</string>
+    <string name="cd_back">Terug</string>
+    <string name="cd_close">Sluiten</string>
+    <string name="volume_label">Volume %1$d</string>
+
+    <string name="action_accent">Accentkleur</string>
+    <string name="action_language">Taal</string>
+    <string name="language_title">Selecteer taal</string>
+    <string name="language_system">Systeemstandaard</string>
+    <string name="accent_title">Accentkleur</string>
+    <string name="accent_from_player">Van speler (standaard)</string>
+    <string name="accent_blue">Blauw</string>
+    <string name="accent_red">Rood</string>
+    <string name="accent_orange">Oranje</string>
+    <string name="accent_yellow">Geel</string>
+    <string name="accent_lime">Limoen</string>
+    <string name="accent_green">Groen</string>
+    <string name="accent_cyan">Cyaan</string>
+    <string name="accent_indigo">Indigo</string>
+    <string name="accent_purple">Paars</string>
+    <string name="accent_pink">Roze</string>
+    <string name="accent_brown">Bruin</string>
+    <string name="accent_slate">Leisteen</string>
+    <string name="accent_amber">Okergeel</string>
+    <string name="accent_oled">Wit</string>
+</resources>

@@ -54,7 +54,8 @@ object Session {
      * reports its own. Setting a different value notifies every watcher, so all
      * open screens recolour, not only the one polling state.
      */
-    var accent: Int = 0xFF3584E4.toInt()
+    const val DEFAULT_ACCENT: Int = 0xFF3584E4.toInt()
+    var accent: Int = DEFAULT_ACCENT
         set(value) {
             if (field == value) {
                 return

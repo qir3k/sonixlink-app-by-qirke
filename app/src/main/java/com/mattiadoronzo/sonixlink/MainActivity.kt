@@ -74,7 +74,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var volume: VolumePill
 
     /** Held in a field: unwatchAccent needs the same instance that was registered. */
-    private val accentWatch = { applyAccent(Session.accent) }
+    private val accentWatch = { Session.accent = Settings.effectiveAccent(this)
+        applyAccent(Session.accent) }
 
     /**
      * Retries the playing track's thumbnail when new covers arrive, if the
@@ -439,13 +440,12 @@ class MainActivity : AppCompatActivity() {
         }
         listeners.toList().forEach { it.onNowPlaying(state) }
         if (state.accent.isNotEmpty()) {
-            val color = Session.parseAccent(state.accent)
-            if (color != Session.accent) {
-                // Setting it notifies the accent watchers, which recolour this
-                // screen and any other open one.
-                Session.accent = color
-                val text = state.accent
-                lifecycleScope.launch(Dispatchers.IO) { Settings.rememberAccent(this@MainActivity, text) }
+            Settings.rememberDeviceAccent(this@MainActivity, state.accent)
+            if (Settings.accentPreference(this@MainActivity) == Settings.ACCENT_PREF_DEVICE) {
+                val color = Session.parseAccent(state.accent)
+                if (color != Session.accent) {
+                    Session.accent = color
+                }
             }
         }
         showNowCover(state.path)
@@ -550,6 +550,16 @@ class MainActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
         R.id.action_search -> {
             startActivity(Intent(this, SearchActivity::class.java))
+            true
+        }
+
+        R.id.action_accent -> {
+            AppearancePreferences.showAccentDialog(this)
+            true
+        }
+
+        R.id.action_language -> {
+            AppearancePreferences.showLanguageDialog(this)
             true
         }
 

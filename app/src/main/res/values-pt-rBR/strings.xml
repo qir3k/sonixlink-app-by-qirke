@@ -1,0 +1,126 @@
+<resources>
+    <string name="connect_title">Encontrar o reprodutor</string>
+    <string name="connect_searching">Buscando…</string>
+    <string name="connect_none">Nenhum reprodutor encontrado. Verifique se o SonixLink está ativo no reprodutor e se o telefone está na mesma rede Wi-Fi.</string>
+    <string name="connect_rescan">Buscar novamente</string>
+    <string name="connect_failed">Sem resposta: %1$s</string>
+    <string name="connect_bluetooth">Conectar via Bluetooth</string>
+    <string name="bluetooth_pick">Dispositivos pareados</string>
+    <string name="bluetooth_none">Nenhum dispositivo pareado. Ative o Bluetooth e o SonixLink no reprodutor e pareie-o nas configurações de Bluetooth do telefone.</string>
+    <string name="bluetooth_off">O Bluetooth está desativado no telefone.</string>
+    <string name="bluetooth_denied">Sem permissão de Bluetooth, o aplicativo não consegue alcançar o reprodutor.</string>
+
+    <string name="crash_title">O aplicativo foi encerrado</string>
+    <string name="crash_copy">Copiar</string>
+    <string name="crash_dismiss">Fechar</string>
+
+    <plurals name="players_found">
+        <item quantity="one">%1$d reprodutor encontrado</item>
+        <item quantity="other">%1$d reprodutores encontrados</item>
+    </plurals>
+
+    <string name="tab_tracks">Faixas</string>
+    <string name="tab_albums">Álbuns</string>
+    <string name="tab_artists">Artistas</string>
+    <string name="tab_album_artists">Artistas do álbum</string>
+    <string name="tab_playlists">Playlists</string>
+    <string name="tab_favourites">Favoritos</string>
+    <string name="tab_folders">Pastas</string>
+
+    <string name="downloading">Baixando o índice…</string>
+    <string name="downloading_progress">Baixando o índice… %1$d%%</string>
+    <string name="download_failed">Não foi possível baixar o índice: %1$s</string>
+    <string name="library_ready">%1$d faixas</string>
+    <string name="scanning_wait">O reprodutor está analisando a biblioteca. Tente novamente quando terminar.</string>
+    <string name="empty_list">Nada aqui.</string>
+    <string name="tracks_count">%1$d faixas</string>
+    <string name="nothing_playing">Nada tocando</string>
+    <string name="refresh_library">Atualizar índice</string>
+    <string name="disconnect">Trocar dispositivo</string>
+    <string name="search_hint">Buscar</string>
+    <string name="search_title">Buscar</string>
+    <string name="search_nothing">Nenhum resultado.</string>
+    <string name="command_failed">O reprodutor não respondeu.</string>
+    <string name="playing_now">Tocando agora</string>
+    <string name="syncing">Sincronizando faixas…</string>
+    <string name="sync_library">Baixando índice da biblioteca</string>
+    <string name="sync_covers">Baixando capas</string>
+    <string name="sync_unreachable">O reprodutor não está respondendo.</string>
+    <string name="sync_no_library">Não foi possível baixar o índice.</string>
+    <string name="retry">Tentar novamente</string>
+
+    <string name="notification_channel">Reprodução no reprodutor</string>
+    <string name="notification_channel_description">A faixa em reprodução no reprodutor com seus controles.</string>
+    <string name="notification_connected">Conectado a %1$s</string>
+    <string name="notification_disconnect">Desconectar</string>
+
+    <string name="cd_play_menu">Tocar tudo</string>
+    <string name="play_random">Tocar em ordem aleatória</string>
+    <string name="play_sequence">Tocar em sequência</string>
+    <string name="play_random_track">Adicionar faixa aleatória à fila</string>
+    <string name="selected_count">%1$d selecionados</string>
+    <string name="sel_queue">Adicionar à fila</string>
+    <string name="sel_fav_add">Adicionar aos favoritos</string>
+    <string name="sel_playlist_add">Adicionar à playlist</string>
+    <string name="sel_fav_remove">Remover dos favoritos</string>
+    <string name="sel_playlist_remove">Remover da playlist</string>
+    <string name="done_queue">Adicionado à fila</string>
+    <string name="done_fav">Adicionado aos favoritos</string>
+    <string name="done_playlist">Faixas adicionadas</string>
+    <string name="done_removed">Faixas removidas</string>
+    <string name="playlist_new">Nova playlist</string>
+    <string name="playlist_name_hint">Nome da playlist</string>
+    <string name="sync_progress">%1$s de %2$s</string>
+
+    <string name="queue_title">Fila</string>
+    <string name="queue_position">%1$d de %2$d</string>
+    <string name="queue_empty">A fila está vazia.</string>
+    <string name="queue_now_playing">Tocando agora</string>
+    <string name="queue_history">Histórico</string>
+    <string name="history_today">Hoje</string>
+    <string name="history_yesterday">Ontem</string>
+    <string name="done_queue_removed">Removido da fila</string>
+    <string name="cd_select">Selecionar</string>
+    <string name="cd_reorder">Reordenar</string>
+    <string name="cd_remove">Remover</string>
+
+    <string name="mode_normal">Em ordem</string>
+    <string name="mode_repeat_all">Repetir tudo</string>
+    <string name="mode_repeat_one">Repetir uma</string>
+    <string name="mode_shuffle">Aleatório</string>
+    <string name="mode_shuffle_repeat">Aleatório e repetir</string>
+    <string name="mode_changed">%1$s</string>
+
+    <string name="cd_play">Tocar</string>
+    <string name="cd_pause">Pausar</string>
+    <string name="cd_next">Próxima</string>
+    <string name="cd_prev">Anterior</string>
+    <string name="cd_mode">Modo de reprodução</string>
+    <string name="cd_volume">Volume</string>
+    <string name="cd_favourite">Favorito</string>
+    <string name="cd_queue">Fila</string>
+    <string name="cd_back">Voltar</string>
+    <string name="cd_close">Fechar</string>
+    <string name="volume_label">Volume %1$d</string>
+
+    <string name="action_accent">Cor de destaque</string>
+    <string name="action_language">Idioma</string>
+    <string name="language_title">Selecionar idioma</string>
+    <string name="language_system">Padrão do sistema</string>
+    <string name="accent_title">Cor de destaque</string>
+    <string name="accent_from_player">Do reprodutor (padrão)</string>
+    <string name="accent_blue">Azul</string>
+    <string name="accent_red">Vermelho</string>
+    <string name="accent_orange">Laranja</string>
+    <string name="accent_yellow">Amarelo</string>
+    <string name="accent_lime">Lima</string>
+    <string name="accent_green">Verde</string>
+    <string name="accent_cyan">Ciano</string>
+    <string name="accent_indigo">Índigo</string>
+    <string name="accent_purple">Roxo</string>
+    <string name="accent_pink">Rosa</string>
+    <string name="accent_brown">Marrom</string>
+    <string name="accent_slate">Grafite</string>
+    <string name="accent_amber">Âmbar</string>
+    <string name="accent_oled">Branco</string>
+</resources>

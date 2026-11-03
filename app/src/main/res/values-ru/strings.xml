@@ -103,4 +103,24 @@
     <string name="cd_back">Назад</string>
     <string name="cd_close">Закрыть</string>
     <string name="volume_label">Громкость %1$d</string>
+<string name="action_accent">Цвет акцента</string>
+    <string name="action_language">Язык</string>
+    <string name="language_title">Выберите язык</string>
+    <string name="language_system">По умолчанию в системе</string>
+    <string name="accent_title">Цвет акцента</string>
+    <string name="accent_from_player">С плеера (по умолчанию)</string>
+    <string name="accent_blue">Синий</string>
+    <string name="accent_red">Красный</string>
+    <string name="accent_orange">Оранжевый</string>
+    <string name="accent_yellow">Жёлтый</string>
+    <string name="accent_lime">Лайм</string>
+    <string name="accent_green">Зелёный</string>
+    <string name="accent_cyan">Циан</string>
+    <string name="accent_indigo">Индиго</string>
+    <string name="accent_purple">Фиолетовый</string>
+    <string name="accent_pink">Розовый</string>
+    <string name="accent_brown">Коричневый</string>
+    <string name="accent_slate">Грифельный</string>
+    <string name="accent_amber">Янтарный</string>
+    <string name="accent_oled">Белый</string>
 </resources>
