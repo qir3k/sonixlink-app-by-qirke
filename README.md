@@ -20,7 +20,7 @@ Everything below is in this fork and not in upstream.
 | **12 languages** | English, Čeština, Deutsch, Español, Français, Italiano, 日本語, Nederlands, Polski, Português (Brasil), Русский and Українська, with a language picker in the menu. The app follows the phone's language by default and can be switched per app, without changing the phone's language. |
 | **Genres tab** | A tab of its own: every genre in the index, how many tracks it holds, its tracks, and circle-play (random order, in sequence, or a random track to the queue). |
 | **Years tab** | Every release year in the index, oldest first, with how many tracks each holds, its tracks, and the same circle-play choices as Genres. |
-| **Streaming tab** | YouTube Music, Tidal, Qobuz, Podcasts and Internet radio browsed from the phone: per-service home pages, search, albums, playlists, shows, episodes and stations, with playback starting on the player. The services stay on the player — no account or key ever comes to the phone. |
+| **Streaming tab** | YouTube Music, Tidal, Qobuz, Podcasts and Internet radio browsed from the phone: per-service home pages, search, albums, playlists, shows, episodes and stations, with playback starting on the player. Each service's home page is the player's own menu in the player's own order — toggle and reorder it on the DAP and the phone follows. Every service has its own icon. The services stay on the player — no account or key ever comes to the phone. |
 | **Tab order and visibility** | Reorder tabs by dragging the grip or with the up/down buttons, switch a tab off with its checkbox, and reset to the default order. At least one tab always stays on. |
 | **Accent color picker** | *From player* (default) keeps following the player's accent, or pick one of 14 fixed colors — blue, red, orange, yellow, lime, green, cyan, indigo, purple, pink, brown, slate, amber or white. The choice applies to every open screen at once. |
 | **Heart or star, detected** | The favourite button and the Favourites tab icon follow the mark the player uses: a heart or a star, read from the player itself. Choose *Auto (from player)*, *Heart* or *Star* by hand. |
@@ -114,7 +114,7 @@ says `/api/bye` when it disconnects.
 | `POST /api/command?do=history_play&id=<id>` | an entry of the history put in right after the track playing, and played |
 | `POST /api/command?do=history_insert&id=<id>&at=<slot>&rev=<r>` | an entry of the history put in the queue at `slot` |
 | `GET /api/stream/services` | the five streaming services, with whether each is configured and signed in |
-| `GET /api/stream/list?service=&kind=&id=&q=&offset=` | one page of a service: `{title, count, more, error, rows:[{kind, id, title, subtitle, album, art, mime, duration, track_number, playable}]}` |
+| `GET /api/stream/list?service=&kind=&id=&q=&offset=` | one page of a service: `{title, count, more, error, rows:[{kind, id, title, subtitle, album, art, url, mime, duration, track_number, playable}]}`. `kind=menu` returns the player's own menu for that service instead of network content |
 | `POST /api/stream/play?service=&index=` | plays row `index` of that service's last page and queues the rest of its tracks, episodes or stations |
 
 The queue commands change only what comes after the track playing, and `rev`
@@ -166,6 +166,16 @@ stay on the player exactly as when its own screen starts them, including
 offline copies and the card. Accounts, API keys and sign-in state are never
 sent to the phone: a service without them is shown as *Not set up on the
 player* or *Sign in on the player*.
+
+The rows inside each service are the player's own menu, not a list this app
+invented. `kind=menu` reads the same settings the player's pages write —
+Tidal's `home_order`/`home_hidden`, YouTube Music's `home_order`/`home_hidden`,
+radio's `hub_order`/`hub_hidden` — so Tidal, YouTube Music and radio show the
+entries, order and on/off state the DAP has, and a change made there appears on
+the phone the next time a service's home page is opened. Qobuz (favourite
+tracks, favourite albums, my playlists, new releases) and Podcasts (my podcasts,
+trending) are the same fixed menus the player has. Each service has its own
+icon, both in the chooser and on its rows.
 
 ### The order of the lists
 

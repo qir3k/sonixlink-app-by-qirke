@@ -25,7 +25,7 @@ import kotlinx.coroutines.withContext
  */
 class StreamingFragment : Fragment() {
 
-    private data class Action(val label: Int, val kind: String, val id: String)
+    private data class Action(val title: String, val kind: String, val id: String)
 
     private data class Page(
         val kind: String,
@@ -49,6 +49,7 @@ class StreamingFragment : Fragment() {
 
     /** Drops answers to a page the user has already left. */
     private var generation = 0
+    private var menuGeneration = 0
 
     private val back = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() = goBack()
@@ -141,46 +142,44 @@ class StreamingFragment : Fragment() {
         val chosen = services.firstOrNull { it.id == id } ?: return
         service = id
         serviceName = chosen.name
-        actions = actionsFor(id)
+        actions = emptyList()
+        rows = emptyList()
         stack.clear()
-        page = Page(homeKind(id), "", chosen.name, "", true)
+        page = Page("", "", chosen.name, "", true)
         views?.searchRow?.visibility = View.VISIBLE
         views?.header?.visibility = View.VISIBLE
         views?.searchInput?.setText("")
         back.isEnabled = true
-        load(page)
+        render()
+        loadMenu(id)
     }
 
-    private fun homeKind(id: String): String = when (id) {
-        "tidal", "qobuz" -> "featured"
-        "podcasts" -> "trending"
-        "radio" -> "recommended"
-        else -> "explore"
-    }
+    /** The rows the player's own page shows, in its saved order. */
+    private fun loadMenu(id: String) {
+        val client = Session.client ?: return
+        val binding = views ?: return
+        val mine = ++menuGeneration
+        binding.progress.visibility = View.VISIBLE
+        binding.emptyText.visibility = View.GONE
 
-    private fun actionsFor(id: String): List<Action> = when (id) {
-        "youtube" -> listOf(
-            Action(R.string.stream_explore, "explore", ""),
-            Action(R.string.stream_charts, "charts", ""),
-            Action(R.string.stream_liked, "liked", ""),
-        )
-        "tidal", "qobuz" -> listOf(
-            Action(R.string.stream_new, "featured", ""),
-            Action(R.string.stream_favourites, "favorites", ""),
-        )
-        "podcasts" -> listOf(
-            Action(R.string.stream_trending, "trending", ""),
-            Action(R.string.stream_followed, "followed", ""),
-        )
-        "radio" -> listOf(
-            Action(R.string.stream_popular, "recommended", ""),
-            Action(R.string.stream_favourites, "favorites", ""),
-            Action(R.string.stream_custom, "custom", ""),
-            Action(R.string.stream_countries, "terms", "countries"),
-            Action(R.string.stream_genres, "terms", "genres"),
-            Action(R.string.stream_languages, "terms", "languages"),
-        )
-        else -> emptyList()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val answer = withContext(Dispatchers.IO) {
+                try {
+                    client.streamList(id, "menu")
+                } catch (e: Exception) {
+                    StreamList("", emptyList(), e.message.orEmpty())
+                }
+            }
+            if (mine != menuGeneration || service != id) return@launch
+            val current = views ?: return@launch
+            current.progress.visibility = View.GONE
+            actions = answer.rows.map { Action(it.title, it.kind, it.id) }
+            render()
+            if (actions.isEmpty() && answer.error.isNotEmpty()) {
+                current.emptyText.text = answer.error
+                current.emptyText.visibility = View.VISIBLE
+            }
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -190,6 +189,17 @@ class StreamingFragment : Fragment() {
     private fun load(target: Page) {
         val client = Session.client ?: return
         val binding = views ?: return
+        // The home page is the player's own menu: no list to fetch, but it may
+        // have been rearranged on the DAP since it was last read.
+        if (target.kind.isEmpty()) {
+            generation++
+            rows = emptyList()
+            adapter.submit(emptyList())
+            binding.headerTitle.text = target.title
+            render()
+            service?.let { loadMenu(it) }
+            return
+        }
         val mine = ++generation
         binding.progress.visibility = View.VISIBLE
         binding.emptyText.visibility = View.GONE
@@ -280,11 +290,14 @@ class StreamingFragment : Fragment() {
                         title = item.name,
                         subtitle = when {
                             !item.available -> getString(R.string.streaming_not_configured)
+                            // YouTube Music's public pages play without an account;
+                            // a session only adds the account's own library.
+                            item.id == "youtube" -> getString(R.string.streaming_ready)
                             !item.signedIn -> getString(R.string.streaming_signed_out)
                             else -> getString(R.string.streaming_ready)
                         },
                         filter = item.id,
-                        iconRes = R.drawable.ic_stream,
+                        iconRes = iconForService(item.id),
                     )
                 )
             }
@@ -299,11 +312,11 @@ class StreamingFragment : Fragment() {
                 for (action in actions) {
                     out.add(
                         Row(
-                            title = getString(action.label),
+                            title = action.title,
                             subtitle = "",
                             filter = action.kind,
                             album = action.id,
-                            iconRes = R.drawable.ic_stream,
+                            iconRes = iconForService(service.orEmpty()),
                         )
                     )
                 }
@@ -328,18 +341,30 @@ class StreamingFragment : Fragment() {
             binding.emptyText.visibility = if (services.isEmpty()) View.VISIBLE else View.GONE
             if (services.isEmpty()) binding.emptyText.setText(R.string.streaming_empty)
         } else {
-            binding.emptyText.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
+            // A menu page shows its actions even when a list has no tracks.
+            val empty = if (page.actions) actions.isEmpty() else rows.isEmpty()
+            binding.emptyText.visibility = if (empty) View.VISIBLE else View.GONE
         }
+    }
+
+    /** Each service's own mark, so five rows are not five copies of the RSS icon. */
+    private fun iconForService(id: String): Int = when (id) {
+        "youtube" -> R.drawable.ic_youtube
+        "tidal" -> R.drawable.ic_tidal
+        "qobuz" -> R.drawable.ic_qobuz
+        "podcasts" -> R.drawable.ic_podcast
+        "radio" -> R.drawable.ic_radio
+        else -> R.drawable.ic_stream
     }
 
     private fun iconFor(row: StreamRow): Int = when (row.kind) {
         "album" -> R.drawable.ic_album
         "artist" -> R.drawable.ic_artist
         "playlist" -> R.drawable.ic_playlist
-        "feed" -> R.drawable.ic_stream
-        "station" -> R.drawable.ic_stream
+        "feed" -> if (service == "youtube") R.drawable.ic_youtube else R.drawable.ic_podcast
+        "station" -> R.drawable.ic_radio
         "term" -> R.drawable.ic_folder
-        else -> R.drawable.ic_stream
+        else -> iconForService(service.orEmpty())
     }
 
     private fun onClick(position: Int) {
@@ -350,7 +375,7 @@ class StreamingFragment : Fragment() {
         if (page.actions) {
             if (position < actions.size) {
                 val action = actions[position]
-                goTo(Page(action.kind, action.id, getString(action.label), "", false))
+                goTo(Page(action.kind, action.id, action.title, "", false))
                 return
             }
         }
