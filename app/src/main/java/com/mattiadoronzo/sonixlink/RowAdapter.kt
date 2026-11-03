@@ -284,24 +284,28 @@ class RowAdapter(
             row.album.isNotEmpty() -> covers.forAlbum(row.album)
             else -> null
         }
+        val icon = when {
+            row.iconRes != 0 -> row.iconRes
+            row.isTrack -> R.drawable.ic_track
+            else -> categoryIcon
+        }
+        views.icon.setImageResource(icon)
         if (cover != null) {
+            views.cover.tag = null
             views.cover.setImageBitmap(cover)
             views.cover.drawable?.isFilterBitmap = true
             views.cover.drawable?.setDither(true)
             views.cover.visibility = View.VISIBLE
             views.icon.visibility = View.GONE
             views.artwork.visibility = View.VISIBLE
+        } else if (row.streamArt.isNotEmpty()) {
+            StreamArtwork.bind(views.cover, views.icon, row.streamArt)
+            views.artwork.visibility = View.VISIBLE
         } else {
+            views.cover.tag = null
             views.cover.setImageDrawable(null)
             views.cover.visibility = View.GONE
             views.icon.visibility = if (leading == Leading.ICON) View.VISIBLE else View.GONE
-            views.icon.setImageResource(
-                when {
-                    row.iconRes != 0 -> row.iconRes
-                    row.isTrack -> R.drawable.ic_track
-                    else -> categoryIcon
-                }
-            )
             views.artwork.visibility = if (leading == Leading.ICON) View.VISIBLE else View.GONE
         }
     }

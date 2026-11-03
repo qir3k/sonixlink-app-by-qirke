@@ -3,6 +3,11 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val releaseKeystorePath = providers.environmentVariable("SONIX_KEYSTORE_PATH").orNull
+val releaseKeystorePassword = providers.environmentVariable("SONIX_KEYSTORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("SONIX_KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("SONIX_KEY_PASSWORD").orNull
+
 android {
     namespace = "com.mattiadoronzo.sonixlink"
     compileSdk = 34
@@ -11,15 +16,26 @@ android {
         applicationId = "com.mattiadoronzo.sonixlink"
         minSdk = 24
         targetSdk = 34
-        versionCode = 2
+        versionCode = providers.environmentVariable("SONIX_VERSION_CODE").orElse("2").get().toInt()
         versionName = "1.2"
+    }
+
+    signingConfigs {
+        create("release") {
+            if (releaseKeystorePath != null) {
+                storeFile = file(releaseKeystorePath)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

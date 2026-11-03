@@ -89,8 +89,8 @@ class PlayerService : Service() {
         /** Notification artwork is subsampled down to no less than this many pixels a side. */
         private const val ART_SIDE = 512
 
-        /** Volume change per volume key press, as on the player. */
-        private const val VOLUME_STEP = 1
+        /** Let the player apply the change before trusting its next state poll. */
+        private const val VOLUME_SYNC_GRACE_MS = 5000L
 
         /** Starts the service for a player, or points the running one at it. */
         fun start(context: Context, host: String, port: Int, name: String) {
@@ -117,6 +117,8 @@ class PlayerService : Service() {
     private lateinit var volume: VolumeProviderCompat
 
     private var state = PlayerState.EMPTY
+    private var requestedVolume: Int? = null
+    private var requestedVolumeAt = 0L
 
     /** The artwork shown, and the track it belongs to. */
     @Volatile
@@ -144,7 +146,7 @@ class PlayerService : Service() {
 
             override fun onAdjustVolume(direction: Int) {
                 if (direction != 0) {
-                    setVolume(currentVolume + direction * VOLUME_STEP)
+                    setVolume(currentVolume + direction * Settings.volumeStep(this@PlayerService))
                 }
             }
         }
@@ -283,6 +285,8 @@ class PlayerService : Service() {
 
     private fun setVolume(level: Int) {
         val target = level.coerceIn(0, 100)
+        requestedVolume = target
+        requestedVolumeAt = android.os.SystemClock.elapsedRealtime()
         volume.currentVolume = target
         send { it.setVolume(target) }
     }
@@ -317,7 +321,17 @@ class PlayerService : Service() {
                 .setState(playback, state.position * 1000L, if (state.isPlaying) 1f else 0f)
                 .build()
         )
-        if (volume.currentVolume != state.volume) {
+        if (state.volumeStep >= 1) {
+            Settings.rememberVolumeStep(this, state.volumeStep)
+        }
+        val requested = requestedVolume
+        if (requested != null &&
+            (state.volume == requested ||
+                android.os.SystemClock.elapsedRealtime() - requestedVolumeAt >= VOLUME_SYNC_GRACE_MS)
+        ) {
+            requestedVolume = null
+        }
+        if (requestedVolume == null && volume.currentVolume != state.volume) {
             volume.currentVolume = state.volume.coerceIn(0, 100)
         }
 

@@ -43,6 +43,7 @@ class StreamingFragment : Fragment() {
     private var serviceName = ""
     private var actions: List<Action> = emptyList()
     private var rows: List<StreamRow> = emptyList()
+    private var downloadRows: List<Row> = emptyList()
 
     private var page = Page("", "", "", "", true)
     private val stack = ArrayList<Page>()
@@ -144,6 +145,7 @@ class StreamingFragment : Fragment() {
         serviceName = chosen.name
         actions = emptyList()
         rows = emptyList()
+        downloadRows = emptyList()
         stack.clear()
         page = Page("", "", chosen.name, "", true)
         views?.searchRow?.visibility = View.VISIBLE
@@ -187,8 +189,8 @@ class StreamingFragment : Fragment() {
                 if (mine != menuGeneration || service != id) return@launch
                 val now = views ?: return@launch
                 if (fallback.rows.isNotEmpty()) {
-                    page = page.copy(actions = false)
-                    actions = emptyList()
+                    page = page.copy(actions = true)
+                    actions = downloadsAction(id)
                     rows = fallback.rows
                     render()
                     return@launch
@@ -200,7 +202,7 @@ class StreamingFragment : Fragment() {
                 now.emptyText.visibility = View.VISIBLE
                 return@launch
             }
-            actions = answer.rows.map { Action(it.title, it.kind, it.id) }
+            actions = answer.rows.map { Action(it.title, it.kind, it.id) } + downloadsAction(id)
             render()
             if (actions.isEmpty() && answer.error.isNotEmpty()) {
                 current.emptyText.text = answer.error
@@ -221,6 +223,7 @@ class StreamingFragment : Fragment() {
         if (target.kind.isEmpty()) {
             generation++
             rows = emptyList()
+            downloadRows = emptyList()
             adapter.submit(emptyList())
             binding.headerTitle.text = target.title
             render()
@@ -233,6 +236,36 @@ class StreamingFragment : Fragment() {
         binding.headerTitle.text = target.title
 
         viewLifecycleOwner.lifecycleScope.launch {
+            if (target.kind == "downloads") {
+                val found = withContext(Dispatchers.IO) {
+                    try {
+                        loadDownloadedRows(client, target.id)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                if (mine != generation) return@launch
+                val current = views ?: return@launch
+                current.progress.visibility = View.GONE
+                if (found == null) {
+                    downloadRows = emptyList()
+                    rows = emptyList()
+                    render()
+                    current.emptyText.setText(R.string.streaming_failed)
+                    current.emptyText.visibility = View.VISIBLE
+                    return@launch
+                }
+                downloadRows = found.map { it.copy(iconRes = iconForService(target.id)) }
+                rows = emptyList()
+                render()
+                if (downloadRows.isEmpty()) {
+                    current.emptyText.setText(R.string.streaming_downloads_empty)
+                    current.emptyText.visibility = View.VISIBLE
+                }
+                current.list.scrollToPosition(0)
+                return@launch
+            }
+
             val answer = withContext(Dispatchers.IO) {
                 try {
                     client.streamList(service.orEmpty(), target.kind, target.id, target.query)
@@ -244,6 +277,7 @@ class StreamingFragment : Fragment() {
             val current = views ?: return@launch
             current.progress.visibility = View.GONE
             rows = answer.rows
+            downloadRows = emptyList()
             render()
             if (answer.rows.isEmpty()) {
                 current.emptyText.text = answer.error.ifEmpty { getString(R.string.streaming_empty) }
@@ -289,6 +323,7 @@ class StreamingFragment : Fragment() {
         if (stack.isEmpty()) {
             service = null
             rows = emptyList()
+            downloadRows = emptyList()
             actions = emptyList()
             stack.clear()
             views?.header?.visibility = View.GONE
@@ -335,6 +370,9 @@ class StreamingFragment : Fragment() {
             binding.searchRow.visibility = View.VISIBLE
             binding.header.visibility = View.VISIBLE
             binding.headerTitle.text = page.title.ifEmpty { serviceName }
+            if (page.kind == "downloads") {
+                out.addAll(downloadRows)
+            }
             if (page.actions) {
                 for (action in actions) {
                     out.add(
@@ -357,6 +395,7 @@ class StreamingFragment : Fragment() {
                         filter = row.kind,
                         album = row.album,
                         iconRes = iconFor(row),
+                        streamArt = row.art,
                     )
                 )
             }
@@ -369,7 +408,11 @@ class StreamingFragment : Fragment() {
             if (services.isEmpty()) binding.emptyText.setText(R.string.streaming_empty)
         } else {
             // A menu page shows its actions even when a list has no tracks.
-            val empty = if (page.actions) actions.isEmpty() else rows.isEmpty()
+            val empty = when {
+                page.kind == "downloads" -> downloadRows.isEmpty()
+                page.actions -> actions.isEmpty() && rows.isEmpty()
+                else -> rows.isEmpty()
+            }
             binding.emptyText.visibility = if (empty) View.VISIBLE else View.GONE
         }
     }
@@ -399,6 +442,10 @@ class StreamingFragment : Fragment() {
             services.getOrNull(position)?.let { openService(it.id) }
             return
         }
+        if (page.kind == "downloads") {
+            downloadRows.getOrNull(position)?.let { playDownloaded(it) }
+            return
+        }
         if (page.actions) {
             if (position < actions.size) {
                 val action = actions[position]
@@ -411,6 +458,78 @@ class StreamingFragment : Fragment() {
         when (row.kind) {
             "track", "episode", "station" -> play(at, row)
             else -> openContainer(row)
+        }
+    }
+
+    private fun downloadsAction(id: String): List<Action> =
+        if (downloadFolder(id) == null) emptyList()
+        else listOf(Action(getString(R.string.streaming_downloads), "downloads", id))
+
+    /** Kept stream files live in these card folders. */
+    private fun downloadFolder(id: String): List<String>? = when (id) {
+        "tidal" -> listOf("Music", "Tidal")
+        "youtube" -> listOf("Music", "YouTube Music")
+        "qobuz" -> listOf("Music", "Qobuz")
+        "podcasts" -> listOf("Podcast")
+        else -> null
+    }
+
+    /**
+     * Browse the card instead of relying on the music index: saved podcasts
+     * intentionally live outside it, and its copy can lag behind a keep action.
+     */
+    private fun loadDownloadedRows(client: PlayerClient, id: String): List<Row> {
+        val segments = downloadFolder(id) ?: return emptyList()
+        var folder = client.browse("")
+        for (segment in segments) {
+            val child = folder.entries.firstOrNull {
+                it.isFolder && it.name.equals(segment, ignoreCase = true)
+            } ?: return emptyList()
+            folder = client.browse(child.path)
+        }
+
+        val pending = java.util.ArrayDeque<String>()
+        val visited = HashSet<String>()
+        val files = ArrayList<FolderEntry>()
+        pending.add(folder.path)
+        while (pending.isNotEmpty()) {
+            val path = pending.removeFirst()
+            if (!visited.add(path)) continue
+            for (entry in client.browse(path).entries) {
+                if (entry.isFolder) pending.add(entry.path) else files.add(entry)
+            }
+        }
+
+        val indexed = Session.library?.tracksByPaths(files.map { it.path }).orEmpty()
+        return files.map { entry ->
+            val known = indexed[entry.path]
+            Row(
+                title = known?.title?.takeIf { it.isNotBlank() } ?: entry.name.substringBeforeLast('.', entry.name),
+                subtitle = known?.subtitle.orEmpty(),
+                path = entry.path,
+                album = known?.album.orEmpty(),
+                artPath = known?.artPath?.takeIf { it.isNotEmpty() } ?: entry.path,
+                artMtime = known?.artMtime ?: 0,
+                artSize = known?.artSize ?: 0,
+            )
+        }
+    }
+
+    private fun playDownloaded(row: Row) {
+        val client = Session.client ?: return
+        Snackbar.make(views?.root ?: return, R.string.streaming_playing, Snackbar.LENGTH_SHORT).show()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val failed = withContext(Dispatchers.IO) {
+                try {
+                    client.playPath(row.path, list = "folder")
+                    false
+                } catch (e: Exception) {
+                    true
+                }
+            }
+            if (failed) {
+                Snackbar.make(views?.root ?: return@launch, R.string.streaming_failed, Snackbar.LENGTH_LONG).show()
+            }
         }
     }
 

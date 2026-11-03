@@ -601,6 +601,7 @@ class MainActivity : AppCompatActivity() {
 
         R.id.action_volume_step -> {
             AppearancePreferences.showVolumeStepDialog(this) { step ->
+                Settings.rememberVolumeStep(this, step)
                 send { it.setVolumeStep(step) }
             }
             true
@@ -624,6 +625,11 @@ class MainActivity : AppCompatActivity() {
                     .putExtra(SyncActivity.EXTRA_FORCE, true)
             )
             finish()
+            true
+        }
+
+        R.id.action_check_updates -> {
+            AppUpdater.checkForUpdates(this)
             true
         }
 

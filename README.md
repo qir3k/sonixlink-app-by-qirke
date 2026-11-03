@@ -62,6 +62,7 @@ player's own sort order and favourite handling, and the crash log.
 | Favourite icon | Auto (from player) | Auto, Heart, Star |
 | Volume step | From player | 1-5 % per press, sent to the player |
 | Tab order | Tracks, Albums, Artists, Album artists, Genres, Years, Playlists, Favourites, Folders, Streaming | Drag or arrows to reorder; uncheck to hide; Reset |
+| Check for app updates | — | Check GitHub for a newer tagged release, download with Android's progress notification, then tap to install |
 
 All five are kept between launches.
 
@@ -185,7 +186,15 @@ entries, order and on/off state the DAP has, and a change made there appears on
 the phone the next time a service's home page is opened. Qobuz (favourite
 tracks, favourite albums, my playlists, new releases) and Podcasts (my podcasts,
 trending) are the same fixed menus the player has. Each service has its own
-icon, both in the chooser and on its rows.
+icon, both in the chooser and on its rows. Streaming rows also load the artwork
+URL supplied by the player, with the service icon kept as a fallback.
+
+Tidal, YouTube Music, Qobuz and Podcasts have a **Downloaded** entry in the app.
+It lists kept files in the player's `Music/Tidal`, `Music/YouTube Music`,
+`Music/Qobuz` and `Podcast` folders that are present in the phone's library
+index. If a newly kept item is missing,
+use **Refresh the index** in the app menu after the player has indexed it; tapping
+a listed item starts playback on the player.
 
 ### The order of the lists
 
@@ -261,7 +270,42 @@ From the command line, with JDK 17 and the Android SDK installed:
 
 The release workflow publishes a tagged APK and its SHA-256 checksum on every
 push to `main`; the test workflow builds the debug APK on `dev` and on pull
-requests.
+requests. The app can check the latest published release from the three-dot
+menu. Android does not allow an ordinary app to silently replace itself: after
+the download, tap the notification and approve the install in Android's package
+installer. If Android asks, allow SonixLink to install unknown apps.
+
+### Signing releases
+
+Every update must be signed with the same private key as the installed app.
+Create one release keystore and keep a secure offline backup; if it is lost,
+Android will not accept future updates signed by a replacement key:
+
+```powershell
+keytool -genkeypair -v -storetype JKS -keystore sonixlink-release.jks -alias sonixlink -keyalg RSA -keysize 4096 -validity 10000
+$env:SONIX_KEYSTORE_BASE64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\sonixlink-release.jks"))
+$env:SONIX_KEYSTORE_BASE64 | Set-Clipboard
+```
+
+In the GitHub repository, open **Settings > Secrets and variables > Actions**
+and add these repository secrets:
+
+| Secret | Value |
+| --- | --- |
+| `SONIX_KEYSTORE_BASE64` | The copied base64 keystore |
+| `SONIX_KEYSTORE_PASSWORD` | The keystore password entered during creation |
+| `SONIX_KEY_ALIAS` | `sonixlink` |
+| `SONIX_KEY_PASSWORD` | The key password entered during creation |
+
+Do not commit the keystore or put its passwords in Gradle files. The release
+workflow fails rather than publishing an APK with a temporary debug key if
+these secrets are missing. Release version codes increase automatically.
+
+This signing change cannot make an already installed debug-signed APK accept a
+new release-signed APK. Back up preferences as described above, uninstall that
+old build once, and install the first APK signed with the release keystore.
+Subsequent releases made with the same keystore can install as updates without
+uninstalling.
 
 The Streaming tab needs the `/api/stream/*` routes in the player firmware
 (`../sonix-player-by-qirke`). Without them the tab opens with no services; the

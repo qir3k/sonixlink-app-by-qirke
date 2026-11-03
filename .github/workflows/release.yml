@@ -155,6 +155,29 @@ jobs:
           echo "Updating versionName to $ver"
           sed -i "s/versionName = .*/versionName = \"$ver\"/" app/build.gradle.kts
 
+      - name: Configure release signing
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.SONIX_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.SONIX_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.SONIX_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.SONIX_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for name in RELEASE_KEYSTORE_BASE64 RELEASE_KEYSTORE_PASSWORD RELEASE_KEY_ALIAS RELEASE_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing required signing secret: $name"
+              exit 1
+            fi
+          done
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/sonixlink-release.jks"
+          {
+            echo "SONIX_KEYSTORE_PATH=$RUNNER_TEMP/sonixlink-release.jks"
+            echo "SONIX_KEYSTORE_PASSWORD=$RELEASE_KEYSTORE_PASSWORD"
+            echo "SONIX_KEY_ALIAS=$RELEASE_KEY_ALIAS"
+            echo "SONIX_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
+            echo "SONIX_VERSION_CODE=$((GITHUB_RUN_NUMBER + 2))"
+          } >> "$GITHUB_ENV"
+
       - name: Assemble Release APK
         run: ./gradlew assembleRelease --build-cache --stacktrace
 

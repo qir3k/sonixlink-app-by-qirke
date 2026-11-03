@@ -178,6 +178,8 @@ data class Row(
     val sortKey: String = "",
     /** This row's icon, where a list mixes rows of different kinds. */
     val iconRes: Int = 0,
+    /** A streaming service's remote artwork, when it has no local cover. */
+    val streamArt: String = "",
 ) {
     /** PENDING: a row whose content has not arrived yet (the queue's pages). */
     enum class Kind { ROW, HEADER, PENDING }
