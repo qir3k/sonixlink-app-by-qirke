@@ -65,16 +65,19 @@ player's own sort order and favourite handling, and the crash log.
 | Tab order | Tracks, Albums, Artists, Album artists, Genres, Years, Playlists, Favourites, Folders, Streaming | Drag or arrows to reorder; uncheck to hide; Reset |
 | Check for app updates | — | Check GitHub for a newer release, download with Android's progress notification, then approve installation in Android |
 
-All five are kept between launches.
+App choices such as language, accent, favourite mark, volume step and tab
+visibility/order are kept between launches. A normal app update signed with the
+same key also keeps Android's private app data automatically.
 
-They are also mirrored to `Download/SonixLink/sonixlink-settings.json` on the
-phone whenever they change, and read back by a build that starts with no
-settings of its own. That is what lets a reinstall -- which a build signed
-with another key needs before it will install -- keep the tab order, the
-language, the accent, the volume step and the player it last connected to.
-Only the preferences are copied: the index and the covers are downloaded
-from the player again. Android 10 and later; older releases have nowhere to
-write that a reinstall keeps.
+The app also mirrors its SharedPreferences to
+`Download/SonixLink/sonixlink-settings.json` on Android 10 and later. **Back up
+app settings** in the three-dot menu writes a fresh copy and reports success or
+failure; a newly installed build with no settings restores that copy at
+startup. This supports reinstalling when Android requires removing a build
+signed with a different key. No broad storage permission is needed: the app
+uses Android's Downloads provider. Android 7–9 does not support this automatic
+external backup, so a reinstall there loses app settings. Only preferences are
+copied; the library index and covers are downloaded from the player again.
 
 ---
 

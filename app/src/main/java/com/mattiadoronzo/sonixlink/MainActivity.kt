@@ -169,6 +169,11 @@ class MainActivity : AppCompatActivity() {
         coversWatch()
     }
 
+    override fun onResume() {
+        super.onResume()
+        AppUpdater.resumeDownload(this)
+    }
+
     override fun onStop() {
         super.onStop()
         Session.unwatchAccent(accentWatch)
@@ -630,6 +635,19 @@ class MainActivity : AppCompatActivity() {
 
         R.id.action_check_updates -> {
             AppUpdater.checkForUpdates(this)
+            true
+        }
+
+        R.id.action_backup_settings -> {
+            PreferencesBackup.backupNow(this) { result ->
+                if (isFinishing || isDestroyed) return@backupNow
+                result.fold(
+                    onSuccess = { say(getString(R.string.settings_backup_saved)) },
+                    onFailure = { error ->
+                        say(getString(R.string.settings_backup_failed, error.localizedMessage ?: error.javaClass.simpleName))
+                    },
+                )
+            }
             true
         }
 

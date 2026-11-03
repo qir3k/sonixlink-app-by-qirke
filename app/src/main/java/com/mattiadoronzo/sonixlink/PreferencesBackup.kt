@@ -15,6 +15,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.util.Base64
+import android.util.Log
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.Executors
@@ -42,9 +43,11 @@ import java.util.concurrent.Executors
  */
 object PreferencesBackup {
 
+    private const val TAG = "PreferencesBackup"
     private const val FOLDER = "SonixLink"
     private const val FILE_NAME = "sonixlink-settings.json"
     private const val PREFS = "sonixlink"
+    private val PREF_FILE_NAME = Regex("[A-Za-z0-9._-]+\\.xml")
 
     /** How long a burst of changes is allowed to settle before one write. */
     private const val SAVE_MS = 1200L
@@ -55,7 +58,13 @@ object PreferencesBackup {
 
     private val saveTask = Runnable {
         val context = app ?: return@Runnable
-        writer.execute { runCatching { write(context, snapshot(context)) } }
+        writer.execute {
+            try {
+                write(context, snapshot(context))
+            } catch (error: Exception) {
+                Log.e(TAG, "Could not back up app settings", error)
+            }
+        }
     }
 
     /**
@@ -79,6 +88,7 @@ object PreferencesBackup {
         if (files.length() == 0) return
         dir.mkdirs()
         for (name in files.keys()) {
+            if (!PREF_FILE_NAME.matches(name) || File(name).name != name) continue
             val bytes = runCatching { Base64.decode(files.optString(name), Base64.NO_WRAP) }
                 .getOrNull() ?: continue
             runCatching { File(dir, name).writeBytes(bytes) }
@@ -102,6 +112,18 @@ object PreferencesBackup {
         })
     }
 
+    fun backupNow(context: Context, onComplete: (Result<Unit>) -> Unit) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            onComplete(Result.failure(IllegalStateException("Settings backup to Downloads requires Android 10 or newer.")))
+            return
+        }
+        val application = context.applicationContext
+        writer.execute {
+            val result = runCatching { write(application, snapshot(application)) }
+            handler.post { onComplete(result) }
+        }
+    }
+
     private fun schedule() {
         handler.removeCallbacks(saveTask)
         handler.postDelayed(saveTask, SAVE_MS)
@@ -122,7 +144,9 @@ object PreferencesBackup {
 
     @SuppressLint("NewApi")
     private fun write(context: Context, payload: String) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        check(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            "Settings backup to Downloads requires Android 10 or newer."
+        }
         val values = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, FILE_NAME)
             put(MediaStore.Downloads.MIME_TYPE, "application/json")
@@ -130,14 +154,18 @@ object PreferencesBackup {
             put(MediaStore.Downloads.IS_PENDING, 1)
         }
         val resolver = context.contentResolver
-        val uri = find(context) ?: resolver.insert(collection(), values) ?: return
-        resolver.openOutputStream(uri, "wt")?.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
-        resolver.update(
+        val uri = find(context) ?: resolver.insert(collection(), values)
+            ?: error("Android could not create the settings backup in Downloads.")
+        val output = resolver.openOutputStream(uri, "wt")
+            ?: error("Android could not open the settings backup in Downloads.")
+        output.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
+        val updated = resolver.update(
             uri,
             ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) },
             null,
             null,
         )
+        check(updated > 0) { "Android could not finish saving the settings backup." }
     }
 
     @SuppressLint("NewApi")

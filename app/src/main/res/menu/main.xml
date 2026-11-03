@@ -44,6 +44,11 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_backup_settings"
+        android:title="@string/action_backup_settings"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_disconnect"
         android:title="@string/disconnect"
         app:showAsAction="never" />
