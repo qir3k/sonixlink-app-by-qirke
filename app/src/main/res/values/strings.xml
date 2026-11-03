@@ -66,7 +66,7 @@
     <string name="update_open_settings">Open settings</string>
     <string name="update_install_failed">Could not open the Android installer</string>
     <string name="action_backup_settings">Back up app settings</string>
-    <string name="settings_backup_saved">Settings backed up to Downloads/SonixLink/sonixlink-settings.json.</string>
+    <string name="settings_backup_saved">Settings backed up in Downloads/SonixLink.</string>
     <string name="settings_backup_failed">Could not back up settings: %1$s</string>
     <string name="disconnect">Change device</string>
     <string name="search_hint">Search</string>

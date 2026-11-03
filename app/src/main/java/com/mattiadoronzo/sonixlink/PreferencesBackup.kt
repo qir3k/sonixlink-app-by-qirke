@@ -18,6 +18,7 @@ import android.util.Base64
 import android.util.Log
 import org.json.JSONObject
 import java.io.File
+import java.util.UUID
 import java.util.concurrent.Executors
 
 /**
@@ -45,7 +46,8 @@ object PreferencesBackup {
 
     private const val TAG = "PreferencesBackup"
     private const val FOLDER = "SonixLink"
-    private const val FILE_NAME = "sonixlink-settings.json"
+    private const val FILE_PREFIX = "sonixlink-settings-"
+    private const val LEGACY_FILE_NAME = "sonixlink-settings.json"
     private const val PREFS = "sonixlink"
     private val PREF_FILE_NAME = Regex("[A-Za-z0-9._-]+\\.xml")
 
@@ -148,24 +150,34 @@ object PreferencesBackup {
             "Settings backup to Downloads requires Android 10 or newer."
         }
         val values = ContentValues().apply {
-            put(MediaStore.Downloads.DISPLAY_NAME, FILE_NAME)
+            put(
+                MediaStore.Downloads.DISPLAY_NAME,
+                "$FILE_PREFIX${System.currentTimeMillis()}-${UUID.randomUUID()}.json",
+            )
             put(MediaStore.Downloads.MIME_TYPE, "application/json")
             put(MediaStore.Downloads.RELATIVE_PATH, relativePath())
             put(MediaStore.Downloads.IS_PENDING, 1)
         }
         val resolver = context.contentResolver
-        val uri = find(context) ?: resolver.insert(collection(), values)
+        val uri = resolver.insert(collection(), values)
             ?: error("Android could not create the settings backup in Downloads.")
-        val output = resolver.openOutputStream(uri, "wt")
-            ?: error("Android could not open the settings backup in Downloads.")
-        output.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
-        val updated = resolver.update(
-            uri,
-            ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) },
-            null,
-            null,
-        )
-        check(updated > 0) { "Android could not finish saving the settings backup." }
+        try {
+            val output = resolver.openOutputStream(uri, "w")
+                ?: error("Android could not open the settings backup in Downloads.")
+            output.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
+            val updated = resolver.update(
+                uri,
+                ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) },
+                null,
+                null,
+            )
+            check(updated > 0) { "Android could not finish saving the settings backup." }
+            removeOlderBackups(context, uri)
+        } catch (error: Exception) {
+            runCatching { resolver.delete(uri, null, null) }
+                .onFailure { Log.w(TAG, "Could not remove incomplete settings backup", it) }
+            throw error
+        }
     }
 
     @SuppressLint("NewApi")
@@ -181,15 +193,62 @@ object PreferencesBackup {
     private fun find(context: Context): Uri? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
         val projection = arrayOf(MediaStore.Downloads._ID)
-        val selection = "${MediaStore.Downloads.DISPLAY_NAME}=? AND ${MediaStore.Downloads.RELATIVE_PATH}=?"
+        val selection = "${MediaStore.Downloads.DISPLAY_NAME} LIKE ? AND ${MediaStore.Downloads.RELATIVE_PATH}=?"
         context.contentResolver
-            .query(collection(), projection, selection, arrayOf(FILE_NAME, relativePath()), null)
+            .query(
+                collection(),
+                projection,
+                selection,
+                arrayOf("$FILE_PREFIX%.json", relativePath()),
+                "${MediaStore.Downloads.DISPLAY_NAME} DESC",
+            )
+            ?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    return ContentUris.withAppendedId(collection(), cursor.getLong(0))
+                }
+            }
+        val legacySelection =
+            "${MediaStore.Downloads.DISPLAY_NAME}=? AND ${MediaStore.Downloads.RELATIVE_PATH}=?"
+        context.contentResolver
+            .query(collection(), projection, legacySelection, arrayOf(LEGACY_FILE_NAME, relativePath()), null)
             ?.use { cursor ->
                 if (cursor.moveToFirst()) {
                     return ContentUris.withAppendedId(collection(), cursor.getLong(0))
                 }
             }
         return null
+    }
+
+    @SuppressLint("NewApi")
+    private fun removeOlderBackups(context: Context, keep: Uri) {
+        try {
+            val projection = arrayOf(MediaStore.Downloads._ID)
+            val selection =
+                "(${MediaStore.Downloads.DISPLAY_NAME}=? OR ${MediaStore.Downloads.DISPLAY_NAME} LIKE ?) AND " +
+                    "${MediaStore.Downloads.RELATIVE_PATH}=?"
+            val ids = mutableListOf<Long>()
+            context.contentResolver
+                .query(
+                    collection(),
+                    projection,
+                    selection,
+                    arrayOf(LEGACY_FILE_NAME, "$FILE_PREFIX%.json", relativePath()),
+                    null,
+                )
+                ?.use { cursor ->
+                    while (cursor.moveToNext()) {
+                        ids += cursor.getLong(0)
+                    }
+                }
+            val keepId = ContentUris.parseId(keep)
+            ids.distinct().filter { it != keepId }.forEach { id ->
+                val uri = ContentUris.withAppendedId(collection(), id)
+                runCatching { context.contentResolver.delete(uri, null, null) }
+                    .onFailure { Log.w(TAG, "Could not remove an older settings backup", it) }
+            }
+        } catch (error: Exception) {
+            Log.w(TAG, "Could not clean up older settings backups", error)
+        }
     }
 
     @SuppressLint("NewApi")

@@ -42,6 +42,7 @@ internal object AppUpdater {
     private const val PREFS = "app_updates"
     private const val DOWNLOAD_ID = "download_id"
     private const val DOWNLOAD_VERSION = "download_version"
+    private const val DISMISSED_READY_ID = "dismissed_ready_id"
     private const val CHANNEL = "app_updates"
     private const val NOTIFICATION_ID = 7402
     private const val APK_MIME = "application/vnd.android.package-archive"
@@ -185,13 +186,14 @@ internal object AppUpdater {
     fun resumeDownload(activity: MainActivity) {
         if (activity.isFinishing || activity.isDestroyed) return
         val preferences = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val id = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong(DOWNLOAD_ID, -1L)
+        val id = preferences.getLong(DOWNLOAD_ID, -1L)
         if (id < 0) return
         val version = preferences.getString(DOWNLOAD_VERSION, "").orEmpty()
-        if (version.isNotEmpty() && compareVersions(BuildConfig.VERSION_NAME, version) >= 0) {
+        if (version.isBlank() || compareVersions(BuildConfig.VERSION_NAME, version) >= 0) {
             clearDownload(activity, id)
             return
         }
+        if (preferences.getLong(DISMISSED_READY_ID, -1L) == id) return
         monitorDownload(activity, id)
     }
 
@@ -322,7 +324,13 @@ internal object AppUpdater {
         MaterialAlertDialogBuilder(activity)
             .setTitle(R.string.update_ready_title)
             .setMessage(R.string.update_ready_body)
-            .setNegativeButton(R.string.update_later, null)
+            .setCancelable(false)
+            .setNegativeButton(R.string.update_later) { _, _ ->
+                activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .edit()
+                    .putLong(DISMISSED_READY_ID, id)
+                    .apply()
+            }
             .setPositiveButton(R.string.update_install) { _, _ ->
                 installDownloadedApk(activity, id)
             }
@@ -369,11 +377,14 @@ internal object AppUpdater {
     }
 
     private fun clearDownload(context: Context, id: Long) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .remove(DOWNLOAD_ID)
-            .remove(DOWNLOAD_VERSION)
-            .apply()
+        val preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (preferences.getLong(DOWNLOAD_ID, -1L) == id) {
+            preferences.edit()
+                .remove(DOWNLOAD_ID)
+                .remove(DOWNLOAD_VERSION)
+                .remove(DISMISSED_READY_ID)
+                .apply()
+        }
         context.getSystemService(DownloadManager::class.java).remove(id)
     }
 

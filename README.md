@@ -59,22 +59,26 @@ player's own sort order and favourite handling, and the crash log.
 | Setting | Default | Choices |
 | --- | --- | --- |
 | Language | System default (the phone's language) | 11 languages, or back to System default |
+| Tab order | Tracks, Albums, Artists, Album artists, Genres, Years, Playlists, Favourites, Folders, Streaming | Drag or arrows to reorder; uncheck to hide; Reset |
 | Accent color | From player (device default) | 14 fixed colors |
 | Favourite icon | Auto (from player) | Auto, Heart, Star |
 | Volume step | From player | 1-5 % per press, sent to the player |
-| Tab order | Tracks, Albums, Artists, Album artists, Genres, Years, Playlists, Favourites, Folders, Streaming | Drag or arrows to reorder; uncheck to hide; Reset |
 | Check for app updates | — | Check GitHub for a newer release, download with Android's progress notification, then approve installation in Android |
+| Back up app settings | — | Save settings in Downloads/SonixLink |
+| Change device | — | Disconnect and choose another player |
+| Refresh the index | — | Fetch the current library index and covers again |
 
 App choices such as language, accent, favourite mark, volume step and tab
 visibility/order are kept between launches. A normal app update signed with the
 same key also keeps Android's private app data automatically.
 
-The app also mirrors its SharedPreferences to
-`Download/SonixLink/sonixlink-settings.json` on Android 10 and later. **Back up
-app settings** in the three-dot menu writes a fresh copy and reports success or
-failure; a newly installed build with no settings restores that copy at
-startup. This supports reinstalling when Android requires removing a build
-signed with a different key. No broad storage permission is needed: the app
+The app also mirrors its SharedPreferences to a uniquely named
+`sonixlink-settings-*.json` file in `Download/SonixLink` on Android 10 and later.
+**Back up app settings** in the three-dot menu writes a fresh copy and reports
+success or failure; a newly installed build with no settings restores the
+latest copy at startup. This supports reinstalling when Android requires
+removing a build signed with a different key. No broad storage permission is
+needed: the app
 uses Android's Downloads provider. Android 7–9 does not support this automatic
 external backup, so a reinstall there loses app settings. Only preferences are
 copied; the library index and covers are downloaded from the player again.
