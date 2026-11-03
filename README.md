@@ -5,30 +5,31 @@ and browses its library.
 
 This fork targets the **TempoTec V1 only**. It is built on
 [Jepl4r/sonixlink-app](https://github.com/Jepl4r/sonixlink-app) and adds a
-translated interface, Genres and Years tabs, customisable tabs, accent and favourite-icon
-choices, and faster artwork and repeat launches. It lives at
+translated interface, Genres and Years tabs, customisable tabs, accent and
+favourite-icon choices, streaming-service browsing, release updates, and
+improved artwork and volume-step handling. It lives at
 [qir3k/sonixlink-app-by-qirke](https://github.com/qir3k/sonixlink-app-by-qirke).
 
 ---
 
 ## Why this fork
 
-Everything below is in this fork and not in upstream.
+Highlights added or expanded in this fork:
 
 | | This fork |
 | --- | --- |
 | **12 languages** | English, Čeština, Deutsch, Español, Français, Italiano, 日本語, Nederlands, Polski, Português (Brasil), Русский and Українська, with a language picker in the menu. The app follows the phone's language by default and can be switched per app, without changing the phone's language. |
 | **Genres tab** | A tab of its own: every genre in the index, how many tracks it holds, its tracks, and circle-play (random order, in sequence, or a random track to the queue). |
 | **Years tab** | Every release year in the index, oldest first, with how many tracks each holds, its tracks, and the same circle-play choices as Genres. |
-| **Streaming tab** | YouTube Music, Tidal, Qobuz, Podcasts and Internet radio browsed from the phone: per-service home pages, search, albums, playlists, shows, episodes and stations, with playback starting on the player. Each service's home page is the player's own menu in the player's own order — toggle and reorder it on the DAP and the phone follows. Every service has its own icon. The services stay on the player — no account or key ever comes to the phone. |
+| **Streaming tab** | Browse YouTube Music, Tidal, Qobuz, Podcasts and Internet radio from the phone: service menus, search, albums, playlists, shows, episodes and stations. Selecting playable content asks the connected player to start playback; audio is not streamed to the phone. The player supplies service accounts, keys, stream handling, and its own menu order. |
 | **Tab order and visibility** | Reorder tabs by dragging the grip or with the up/down buttons, switch a tab off with its checkbox, and reset to the default order. At least one tab always stays on. |
 | **Accent color picker** | *From player* (default) keeps following the player's accent, or pick one of 14 fixed colors — blue, red, orange, yellow, lime, green, cyan, indigo, purple, pink, brown, slate, amber or white. The choice applies to every open screen at once. |
 | **Heart or star, detected** | The favourite button and the Favourites tab icon follow the mark the player uses: a heart or a star, read from the player itself. Choose *Auto (from player)*, *Heart* or *Star* by hand. |
-| **Artwork everywhere** | Album covers come from the player's thumbnails; an album still waiting for its thumbnail is fetched directly from the track's embedded art (`/api/art`). Covers, the now-playing image and the blurred background are all cached and drawn crisper. |
+| **Artwork everywhere** | Library covers come from the player's thumbnails; a missing album thumbnail can be fetched from embedded track art (`/api/art`). Now-playing and streaming artwork are also loaded from the player, with service icons as fallbacks. Artwork is cached for lists, playback, and the blurred background. |
 | **Fast second launch** | The library index, the list of thumbnail keys and every thumbnail already fetched are kept on the phone and reopened locally. A later launch asks the player only for its fingerprints and downloads nothing when the library has not changed. |
 | **Live artwork over Wi-Fi and Bluetooth** | Artwork is fetched while the lists scroll — 32 keys a request over Wi-Fi, 8 with a pause over Bluetooth — and a cover the player is still rendering is retried until it is ready. A cover skipped past is never fetched. |
 | **Smooth scrolling** | When thumbnails arrive only the visible rows are rebound, on a short debounce, instead of the whole list — no ghosting tails while flinging on a 120 Hz screen. |
-| **Release builds** | GitHub Actions builds a tagged APK with a SHA-256 checksum on every `main` push, and a test workflow builds the debug APK on `dev` and pull requests. |
+| **App updates** | The three-dot menu checks GitHub Releases, compares version tags, and can download the signed APK with Android's download notification. Android still requires the user to approve installation. Releases include a SHA-256 checksum; the `dev` test workflow builds a debug APK. |
 
 Everything upstream does is still here: discovery over mDNS and the UDP beacon,
 the search page, playback controls and modes, selection mode, the full queue
@@ -50,7 +51,7 @@ player's own sort order and favourite handling, and the crash log.
 - **A media notification** with the track playing on the player, its artwork, previous/play-pause/next and the position bar, also on the lock screen, so the app does not need to be opened to change track.
 - **Over Wi-Fi or Bluetooth.** A player paired with the phone can be reached without a shared Wi-Fi network.
 - **Now-playing screen** with the cover sent by the player and a blurred version of the same image behind it.
-- **The phone's volume keys can change the device volume**, with the app open and, through the media notification, from the lock screen, in the player's own step: set 5 % on the TempoTec and one press on the phone moves 5.
+- **The phone's volume keys can change the device volume**, with the app open and, through the media notification, from the lock screen, in the player's own step. The app can use the player-selected step or a 1–5% step; it retains a newly requested step while waiting for the player's next state update.
 - **The accent color follows the player** by default; change it there and every screen of the app changes with it, at once. Prefer a fixed color? Pick one in the menu and the app stops following the player.
 
 ### The settings menu
@@ -62,7 +63,7 @@ player's own sort order and favourite handling, and the crash log.
 | Favourite icon | Auto (from player) | Auto, Heart, Star |
 | Volume step | From player | 1-5 % per press, sent to the player |
 | Tab order | Tracks, Albums, Artists, Album artists, Genres, Years, Playlists, Favourites, Folders, Streaming | Drag or arrows to reorder; uncheck to hide; Reset |
-| Check for app updates | — | Check GitHub for a newer tagged release, download with Android's progress notification, then tap to install |
+| Check for app updates | — | Check GitHub for a newer release, download with Android's progress notification, then approve installation in Android |
 
 All five are kept between launches.
 
@@ -167,16 +168,17 @@ player in the phone's Bluetooth settings: SonixLink needs neither.
 
 ### Streaming
 
-The streaming pages are a view of the player's own clients, not a second
-implementation: the phone asks the player for a page (`/api/stream/list`), the
-player calls its YouTube Music, Tidal, Qobuz, Podcasts or radio module, and the
-answer is returned as one row shape. Tapping a row sends only the service and
-the row's index (`/api/stream/play`), so the player still holds the titles,
-ids and cover addresses the queue needs. The caches, sidecars and downloads
-stay on the player exactly as when its own screen starts them, including
-offline copies and the card. Accounts, API keys and sign-in state are never
-sent to the phone: a service without them is shown as *Not set up on the
-player* or *Sign in on the player*.
+The streaming pages are a remote view of the player's own clients, not a
+second streaming implementation: the phone asks the player for a page
+(`/api/stream/list`), the player calls its YouTube Music, Tidal, Qobuz,
+Podcasts or radio module, and the answer is returned as one row shape. Tapping
+a playable row sends the service and row index (`/api/stream/play`); the player
+resolves and plays the audio and owns the resulting queue. The app does not
+download or decode the stream itself. This means YouTube Music playback fixes
+to stream resolution or playback belong in the Sonix Player firmware; SonixLink
+provides the browsing and remote-control interface. Accounts, API keys and
+sign-in state stay on the player: a service without them is shown as *Not set
+up on the player* or *Sign in on the player*.
 
 The rows inside each service are the player's own menu, not a list this app
 invented. `kind=menu` reads the same settings the player's pages write —
@@ -307,9 +309,9 @@ old build once, and install the first APK signed with the release keystore.
 Subsequent releases made with the same keystore can install as updates without
 uninstalling.
 
-The Streaming tab needs the `/api/stream/*` routes in the player firmware
-(`../sonix-player-by-qirke`). Without them the tab opens with no services; the
-rest of the app is unaffected.
+The Streaming tab needs the `/api/stream/*` routes in the
+[Sonix Player firmware](https://github.com/qir3k/sonix-player-by-qirke). Without
+them the tab opens with no services; the rest of the app is unaffected.
 
 ## Credits
 
