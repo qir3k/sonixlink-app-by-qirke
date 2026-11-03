@@ -164,7 +164,9 @@ class QueueActivity : AppCompatActivity() {
         views = ActivityQueueBinding.inflate(layoutInflater)
         setContentView(views.root)
 
-        volume = VolumePill(views.volume) { level -> sendVolume(level) }
+        volume = VolumePill(views.volume, { Settings.volumeStep(this) }) { level ->
+            sendVolume(level)
+        }
 
         setSupportActionBar(views.toolbar)
         supportActionBar?.title = getString(R.string.queue_title)

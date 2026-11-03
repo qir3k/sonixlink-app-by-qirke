@@ -50,7 +50,7 @@ player's own sort order and favourite handling, and the crash log.
 - **A media notification** with the track playing on the player, its artwork, previous/play-pause/next and the position bar, also on the lock screen, so the app does not need to be opened to change track.
 - **Over Wi-Fi or Bluetooth.** A player paired with the phone can be reached without a shared Wi-Fi network.
 - **Now-playing screen** with the cover sent by the player and a blurred version of the same image behind it.
-- **The phone's volume keys can change the device volume**, with the app open and, through the media notification, from the lock screen.
+- **The phone's volume keys can change the device volume**, with the app open and, through the media notification, from the lock screen, in the player's own step: set 5 % on the TempoTec and one press on the phone moves 5.
 - **The accent color follows the player** by default; change it there and every screen of the app changes with it, at once. Prefer a fixed color? Pick one in the menu and the app stops following the player.
 
 ### The settings menu
@@ -60,9 +60,19 @@ player's own sort order and favourite handling, and the crash log.
 | Language | System default (the phone's language) | 11 languages, or back to System default |
 | Accent color | From player (device default) | 14 fixed colors |
 | Favourite icon | Auto (from player) | Auto, Heart, Star |
+| Volume step | From player | 1-5 % per press, sent to the player |
 | Tab order | Tracks, Albums, Artists, Album artists, Genres, Years, Playlists, Favourites, Folders, Streaming | Drag or arrows to reorder; uncheck to hide; Reset |
 
-All four are kept between launches.
+All five are kept between launches.
+
+They are also mirrored to `Download/SonixLink/sonixlink-settings.json` on the
+phone whenever they change, and read back by a build that starts with no
+settings of its own. That is what lets a reinstall -- which a build signed
+with another key needs before it will install -- keep the tab order, the
+language, the accent, the volume step and the player it last connected to.
+Only the preferences are copied: the index and the covers are downloaded
+from the player again. Android 10 and later; older releases have nowhere to
+write that a reinstall keeps.
 
 ---
 

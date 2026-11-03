@@ -69,7 +69,9 @@ class NowPlayingActivity : AppCompatActivity() {
         setContentView(views.root)
 
         // Before the early return: dispatchKeyEvent uses it regardless.
-        volume = VolumePill(views.volume) { level -> send { it.setVolume(level) } }
+        volume = VolumePill(views.volume, { Settings.volumeStep(this) }) { level ->
+            send { it.setVolume(level) }
+        }
 
         if (Session.client == null) {
             finish()

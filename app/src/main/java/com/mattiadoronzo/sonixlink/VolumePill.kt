@@ -16,14 +16,17 @@ import com.mattiadoronzo.sonixlink.databinding.VolumePillBinding
  */
 class VolumePill(
     private val views: VolumePillBinding,
+    /**
+     * How far one press moves the level: the player's own volume step, so the
+     * phone's keys move as far as the player's do. Read on every press, because
+     * the setting can change on the player with a screen already open.
+     */
+    private val step: () -> Int = { 1 },
     /** Sends the level to the player. Called from the main thread. */
     private val send: (Int) -> Unit,
 ) {
 
     private companion object {
-        /** One step per press, as on the player. */
-        const val STEP = 1
-
         /** Minimum gap between two sends while dragging. */
         const val SEND_MS = 100L
 
@@ -103,12 +106,13 @@ class VolumePill(
             return false
         }
         if (event.action == KeyEvent.ACTION_DOWN) {
-            val step = if (code == KeyEvent.KEYCODE_VOLUME_UP) STEP else -STEP
+            val amount = step().coerceIn(1, 100)
+            val delta = if (code == KeyEvent.KEYCODE_VOLUME_UP) amount else -amount
             // Steps from the pill's own level while it is shown: the poll
             // overwrites Session.state with levels not yet applied, which
             // would swallow quick presses.
             val from = if (showing) views.volumeSeek.progress else Session.state.volume
-            val target = (from + step).coerceIn(0, 100)
+            val target = (from + delta).coerceIn(0, 100)
             show(target)
             queue(target)
         }

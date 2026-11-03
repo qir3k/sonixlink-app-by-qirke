@@ -96,7 +96,9 @@ class MainActivity : AppCompatActivity() {
 
         // Before any early return: volume keys can arrive even while the screen
         // is finishing, and dispatchKeyEvent uses this.
-        volume = VolumePill(views.volume) { level -> send { it.setVolume(level) } }
+        volume = VolumePill(views.volume, { Settings.volumeStep(this) }) { level ->
+            send { it.setVolume(level) }
+        }
 
         val host = intent.getStringExtra(EXTRA_HOST).orEmpty()
         val port = intent.getIntExtra(EXTRA_PORT, PlayerClient.DEFAULT_PORT)

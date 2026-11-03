@@ -95,7 +95,9 @@ class SearchActivity : AppCompatActivity() {
         views = ActivitySearchBinding.inflate(layoutInflater)
         setContentView(views.root)
 
-        volume = VolumePill(views.volume) { level -> sendVolume(level) }
+        volume = VolumePill(views.volume, { Settings.volumeStep(this) }) { level ->
+            sendVolume(level)
+        }
 
         adapter = RowAdapter(R.drawable.ic_track) { at, row -> onRowClicked(at, row) }
         adapter.onLongPress = { at, row -> onRowLongPressed(at, row) }
