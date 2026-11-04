@@ -223,6 +223,24 @@
                 android:contentDescription="@string/cd_queue"
                 android:tint="@color/text_secondary" />
         </LinearLayout>
+
+        <!-- The episode speed: the player's own setting, shown only while a
+             podcast episode is playing, which is the only thing it changes. -->
+        <TextView
+            android:id="@+id/speedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="20dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:paddingStart="14dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="6dp"
+            android:text="@string/speed_button"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:visibility="gone" />
     </LinearLayout>
     </FrameLayout>
 

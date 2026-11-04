@@ -134,6 +134,8 @@ class PlayerClient(val host: String, val port: Int = DEFAULT_PORT) {
             favStar = if (json.has("fav_star")) json.optBoolean("fav_star") else null,
             favMark = json.optString("fav_mark", "").ifEmpty { json.optString("fav_icon", "") },
             volumeStep = json.optInt("volume_step", -1),
+            podcast = json.optBoolean("podcast", false),
+            podcastSpeed = json.optInt("podcast_speed", 1000),
         )
     }
 
@@ -160,6 +162,13 @@ class PlayerClient(val host: String, val port: Int = DEFAULT_PORT) {
     fun setVolumeStep(step: Int) =
         command("do" to "volume_step", "value" to step.coerceIn(1, 5).toString())
     fun setMode(mode: PlayMode) = command("do" to "mode", "value" to mode.wire)
+
+    /**
+     * The podcast speed, in thousandths: the same setting the player's own speed
+     * menu changes, so an episode already playing changes rate at once. A song
+     * is untouched -- the player only stretches episodes.
+     */
+    fun setSpeed(permille: Int) = command("do" to "speed", "value" to permille.coerceIn(250, 4000).toString())
     /**
      * Starts a track with the list it came from, which becomes the queue.
      * `list` is "all", "album", "artist", "album_artist", "genre",
@@ -408,12 +417,24 @@ class PlayerClient(val host: String, val port: Int = DEFAULT_PORT) {
      * featured, album, feed, stations...), `id` the item to open, and `query`
      * the search text or the radio browse list. Blocking.
      */
-    fun streamList(service: String, kind: String, id: String = "", query: String = "", offset: Int = 0): StreamList {
+    fun streamList(
+        service: String,
+        kind: String,
+        id: String = "",
+        query: String = "",
+        offset: Int = 0,
+        order: String = "",
+        parent: String = "",
+    ): StreamList {
         var target = "/api/stream/list?service=" + URLEncoder.encode(service, "UTF-8")
         target += "&kind=" + URLEncoder.encode(kind, "UTF-8")
         if (id.isNotEmpty()) target += "&id=" + URLEncoder.encode(id, "UTF-8")
         if (query.isNotEmpty()) target += "&q=" + URLEncoder.encode(query, "UTF-8")
         if (offset > 0) target += "&offset=$offset"
+        // "oldest" turns an episode page round; the title of the row a page was
+        // opened from is the show an episode page does not name itself.
+        if (order.isNotEmpty()) target += "&order=" + URLEncoder.encode(order, "UTF-8")
+        if (parent.isNotEmpty()) target += "&title=" + URLEncoder.encode(parent, "UTF-8")
 
         val json = JSONObject(request(target, readTimeout = 45000))
         val array = json.optJSONArray("rows") ?: return StreamList(json.optString("title", ""), emptyList())
@@ -432,6 +453,7 @@ class PlayerClient(val host: String, val port: Int = DEFAULT_PORT) {
                     duration = item.optInt("duration", 0),
                     trackNumber = item.optInt("track_number", 0),
                     playable = item.optBoolean("playable", true),
+                    played = item.optBoolean("played", false),
                 )
             )
         }

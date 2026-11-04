@@ -48,6 +48,13 @@ class StreamingFragment : Fragment() {
     private var page = Page("", "", "", "", true)
     private val stack = ArrayList<Page>()
 
+    /**
+     * Whether episode pages are drawn oldest first. The player reverses the
+     * page itself, so the order on screen is the order it kept the rows in and
+     * a tap still plays the row that was touched.
+     */
+    private var oldestFirst = false
+
     /** Drops answers to a page the user has already left. */
     private var generation = 0
     private var menuGeneration = 0
@@ -71,6 +78,10 @@ class StreamingFragment : Fragment() {
         binding.list.setHasFixedSize(true)
 
         binding.headerBack.setOnClickListener { goBack() }
+        binding.headerSort.setOnClickListener {
+            oldestFirst = !oldestFirst
+            load(page)
+        }
         binding.clearButton.setOnClickListener {
             binding.searchInput.setText("")
             binding.searchInput.requestFocus()
@@ -268,7 +279,16 @@ class StreamingFragment : Fragment() {
 
             val answer = withContext(Dispatchers.IO) {
                 try {
-                    client.streamList(service.orEmpty(), target.kind, target.id, target.query)
+                    client.streamList(
+                        service.orEmpty(),
+                        target.kind,
+                        target.id,
+                        target.query,
+                        order = if (oldestFirst) "oldest" else "",
+                        // A show's episodes do not name the show: the page they
+                        // were opened from does.
+                        parent = if (target.kind in titledPages) target.title else "",
+                    )
                 } catch (e: Exception) {
                     StreamList("", emptyList(), e.message.orEmpty())
                 }
@@ -341,6 +361,8 @@ class StreamingFragment : Fragment() {
     // The list
     // -----------------------------------------------------------------------
 
+    private val titledPages = setOf("open", "feed", "album", "playlist", "artist")
+
     private fun render() {
         val binding = views ?: return
         val out = ArrayList<Row>()
@@ -390,7 +412,13 @@ class StreamingFragment : Fragment() {
                 out.add(
                     Row(
                         title = row.title,
-                        subtitle = row.subtitle,
+                        subtitle = when {
+                            // A tick in front of the creator: the player's own
+                            // record of having heard the episode.
+                            row.played && row.subtitle.isNotEmpty() -> "✓ " + row.subtitle
+                            row.played -> getString(R.string.streaming_played)
+                            else -> row.subtitle
+                        },
                         path = row.id,
                         filter = row.kind,
                         album = row.album,
@@ -403,6 +431,17 @@ class StreamingFragment : Fragment() {
 
         adapter.leading = RowAdapter.Leading.ICON
         adapter.submit(out)
+
+        // Only an episode page has an order to change.
+        val episodes = service != null && rows.any { it.kind == "episode" }
+        binding.headerSort.visibility = if (episodes) View.VISIBLE else View.GONE
+        if (episodes) {
+            binding.headerSort.setImageResource(
+                if (oldestFirst) R.drawable.ic_sort_oldest else R.drawable.ic_sort_newest,
+            )
+            binding.headerSort.contentDescription =
+                getString(if (oldestFirst) R.string.streaming_sort_newest else R.string.streaming_sort_oldest)
+        }
         if (service == null) {
             binding.emptyText.visibility = if (services.isEmpty()) View.VISIBLE else View.GONE
             if (services.isEmpty()) binding.emptyText.setText(R.string.streaming_empty)
@@ -455,6 +494,13 @@ class StreamingFragment : Fragment() {
         }
         val at = position - if (page.actions) actions.size else 0
         val row = rows.getOrNull(at) ?: return
+        // Explore lists albums and singles, and one of those opens a folder
+        // that holds nothing but its own track names. A tap on a card there
+        // plays it, like a song in every other page does.
+        if (page.kind == "explore" && row.kind == "container") {
+            playContainer(row)
+            return
+        }
         when (row.kind) {
             "track", "episode", "station" -> play(at, row)
             else -> openContainer(row)
@@ -523,6 +569,35 @@ class StreamingFragment : Fragment() {
                 try {
                     client.playPath(row.path, list = "folder")
                     false
+                } catch (e: Exception) {
+                    true
+                }
+            }
+            if (failed) {
+                Snackbar.make(views?.root ?: return@launch, R.string.streaming_failed, Snackbar.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    /**
+     * Plays a card's first song without showing its folder: the page is
+     * fetched for the queue the player builds from it, then started at the
+     * first row that plays.
+     */
+    private fun playContainer(row: StreamRow) {
+        val client = Session.client ?: return
+        Snackbar.make(views?.root ?: return, R.string.streaming_playing, Snackbar.LENGTH_SHORT).show()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val failed = withContext(Dispatchers.IO) {
+                try {
+                    val list = client.streamList(service.orEmpty(), "open", row.id)
+                    val first = list.rows.indexOfFirst { it.kind == "track" || it.kind == "episode" }
+                    if (first < 0) {
+                        true
+                    } else {
+                        client.streamPlay(service.orEmpty(), first)
+                        false
+                    }
                 } catch (e: Exception) {
                     true
                 }

@@ -34,6 +34,17 @@
             android:ellipsize="end"
             android:textColor="@color/text_primary"
             android:textSize="16sp" />
+
+        <!-- Only an episode page has an order to turn round. -->
+        <ImageButton
+            android:id="@+id/headerSort"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:src="@drawable/ic_sort_newest"
+            android:contentDescription="@string/streaming_sort_oldest"
+            android:tint="@color/text_primary"
+            android:visibility="gone" />
     </LinearLayout>
 
     <LinearLayout

@@ -158,6 +158,11 @@
 
 
     <string name="tab_genres">Genres</string>
+    <string name="streaming_played">Played</string>
+    <string name="streaming_sort_oldest">Sort oldest first</string>
+    <string name="streaming_sort_newest">Sort newest first</string>
+    <string name="speed_button">%s</string>
+    <string name="speed_title">Playback speed</string>
     <string name="tab_years">Years</string>
     <string name="action_tab_order">Tab order</string>
     <string name="reset_default">Reset</string>

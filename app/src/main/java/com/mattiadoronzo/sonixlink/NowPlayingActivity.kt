@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.mattiadoronzo.sonixlink.databinding.ActivityNowPlayingBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -59,6 +60,17 @@ class NowPlayingActivity : AppCompatActivity() {
     private var seekHoldUntil = 0L
 
     private lateinit var volume: VolumePill
+
+    /** The player's own speed choices: thousandths to the label it shows. */
+    private val speedChoices = listOf(
+        500 to "0.5x",
+        750 to "0.75x",
+        1000 to "1.0x",
+        1250 to "1.25x",
+        1500 to "1.5x",
+        1750 to "1.75x",
+        2000 to "2.0x",
+    )
 
     /** Kept in a field: unwatchAccent removes it by identity. */
     private val accentWatch = { applyAccent() }
@@ -259,6 +271,7 @@ class NowPlayingActivity : AppCompatActivity() {
         views.queueButton.setOnClickListener {
             startActivity(Intent(this, QueueActivity::class.java))
         }
+        views.speedButton.setOnClickListener { pickSpeed() }
 
         views.progressSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar, value: Int, fromUser: Boolean) {
@@ -378,6 +391,7 @@ class NowPlayingActivity : AppCompatActivity() {
         views.total.text = clock(state.duration.toLong())
 
         volume.follow(state.volume)
+        showSpeed(state)
 
         // The player's own "4/12": the place in the shuffled order under
         // shuffle, empty for a single track or a book.
@@ -399,6 +413,42 @@ class NowPlayingActivity : AppCompatActivity() {
         if (view.text?.toString() != text) {
             view.text = text
         }
+    }
+
+    /**
+     * The speed of the episode playing, and nothing at all for a song: the
+     * player only stretches podcasts, so a rate beside a track would be a
+     * control that does nothing.
+     */
+    private fun showSpeed(state: PlayerState) {
+        views.speedButton.visibility = if (state.podcast) View.VISIBLE else View.GONE
+        if (!state.podcast) return
+        val known = speedChoices.firstOrNull { it.first == state.podcastSpeed }
+        setText(
+            views.speedButton,
+            known?.second ?: String.format(java.util.Locale.US, "%.2fx", state.podcastSpeed / 1000.0),
+        )
+    }
+
+    /**
+     * The same seven rates the player's own speed menu offers, so the two
+     * screens cannot disagree about what the choices are.
+     */
+    private fun pickSpeed() {
+        val current = shownState.podcastSpeed
+        val labels = speedChoices.map { it.second }.toTypedArray()
+        val checked = speedChoices.indexOfFirst { it.first == current }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.speed_title)
+            .setSingleChoiceItems(labels, checked) { dialog, which ->
+                dialog.dismiss()
+                val permille = speedChoices[which].first
+                // Shown at once: the poll that confirms it is up to a second
+                // away, and the rate is heard before it is read back.
+                setText(views.speedButton, speedChoices[which].second)
+                send { it.setSpeed(permille) }
+            }
+            .show()
     }
 
     private fun showMode(mode: PlayMode) {

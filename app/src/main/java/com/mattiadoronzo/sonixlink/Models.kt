@@ -141,6 +141,10 @@ data class PlayerState(
      * not send it, which is what an older build of the firmware does.
      */
     val volumeStep: Int = -1,
+    /** Whether what is playing is a podcast episode, the only thing sped up. */
+    val podcast: Boolean = false,
+    /** The episode speed in thousandths, 1000 being 1.0x. */
+    val podcastSpeed: Int = 1000,
 ) {
     val isPlaying: Boolean get() = playState == 1
     val hasTrack: Boolean get() = title.isNotEmpty() || path.isNotEmpty()
@@ -222,6 +226,8 @@ data class StreamRow(
     val duration: Int = 0,
     val trackNumber: Int = 0,
     val playable: Boolean = true,
+    /** An episode the player has already been played to the end. */
+    val played: Boolean = false,
 )
 
 /** A page from a service: a title, its rows, and what went wrong if anything. */
