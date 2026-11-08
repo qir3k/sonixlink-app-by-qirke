@@ -590,7 +590,7 @@ class StreamingFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             val failed = withContext(Dispatchers.IO) {
                 try {
-                    val list = client.streamList(service.orEmpty(), "open", row.id)
+                    val list = client.streamList(service.orEmpty(), "open", row.id, parent = row.title)
                     val first = list.rows.indexOfFirst { it.kind == "track" || it.kind == "episode" }
                     if (first < 0) {
                         true
