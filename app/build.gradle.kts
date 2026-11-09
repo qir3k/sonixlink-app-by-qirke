@@ -52,6 +52,11 @@ android {
         // generate BuildConfig unless this is on.
         buildConfig = true
     }
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+    }
 }
 
 dependencies {

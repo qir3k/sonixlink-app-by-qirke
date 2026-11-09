@@ -159,4 +159,22 @@
 	<string name="stream_countries">Procházet podle země</string>
 	<string name="stream_genres">Procházet podle žánru</string>
 	<string name="stream_languages">Procházet podle jazyka</string>
+    <string name="action_dsp">Ekvalizér a DSP</string>
+    <string name="dsp_title">Zvuk a DSP</string>
+    <string name="mseb">MSEB</string>
+    <string name="mseb_title">MSEB (MageSound)</string>
+    <string name="mseb_desc">Akustické ladění</string>
+    <string name="eq">EQ</string>
+    <string name="eq_title">Grafický ekvalizér</string>
+    <string name="eq_desc">10pásmový ekvalizér</string>
+    <string name="peq">PEQ</string>
+    <string name="peq_title">Parametrický ekvalizér</string>
+    <string name="peq_desc">Parametrický ekvalizér</string>
+    <string name="peq_profile">Profil PEQ</string>
+    <string name="peq_profile_1">Profil 1</string>
+    <string name="peq_profile_2">Profil 2</string>
+    <string name="cd_mseb">Přepnout MSEB</string>
+    <string name="cd_eq">Přepnout ekvalizér</string>
+    <string name="cd_peq">Přepnout parametrický ekvalizér</string>
+    <string name="cd_peq_profile">Změnit profil PEQ</string>
 </resources>

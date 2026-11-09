@@ -159,4 +159,22 @@
 	<string name="stream_countries">Огляд за країнами</string>
 	<string name="stream_genres">Огляд за жанрами</string>
 	<string name="stream_languages">Огляд за мовами</string>
+    <string name="action_dsp">Еквалайзер і DSP</string>
+    <string name="dsp_title">Аудіо та DSP</string>
+    <string name="mseb">MSEB</string>
+    <string name="mseb_title">MSEB (MageSound)</string>
+    <string name="mseb_desc">Акустичне налаштування</string>
+    <string name="eq">EQ</string>
+    <string name="eq_title">Графічний еквалайзер</string>
+    <string name="eq_desc">10-смуговий еквалайзер</string>
+    <string name="peq">PEQ</string>
+    <string name="peq_title">Параметричний еквалайзер</string>
+    <string name="peq_desc">Параметричний еквалайзер</string>
+    <string name="peq_profile">Профіль PEQ</string>
+    <string name="peq_profile_1">Профіль 1</string>
+    <string name="peq_profile_2">Профіль 2</string>
+    <string name="cd_mseb">Увімкнути/вимкнути MSEB</string>
+    <string name="cd_eq">Увімкнути/вимкнути еквалайзер</string>
+    <string name="cd_peq">Увімкнути/вимкнути параметричний еквалайзер</string>
+    <string name="cd_peq_profile">Змінити профіль PEQ</string>
 </resources>

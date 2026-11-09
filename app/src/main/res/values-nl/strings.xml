@@ -157,4 +157,22 @@
 	<string name="stream_countries">Bladeren op land</string>
 	<string name="stream_genres">Bladeren op genre</string>
 	<string name="stream_languages">Bladeren op taal</string>
+    <string name="action_dsp">Equalizer &amp; DSP</string>
+    <string name="dsp_title">Audio &amp; DSP</string>
+    <string name="mseb">MSEB</string>
+    <string name="mseb_title">MSEB (MageSound)</string>
+    <string name="mseb_desc">Akoestische afstemming</string>
+    <string name="eq">EQ</string>
+    <string name="eq_title">Grafische EQ</string>
+    <string name="eq_desc">10-bands equalizer</string>
+    <string name="peq">PEQ</string>
+    <string name="peq_title">Parametrische EQ</string>
+    <string name="peq_desc">Parametrische equalizer</string>
+    <string name="peq_profile">PEQ-profiel</string>
+    <string name="peq_profile_1">Profiel 1</string>
+    <string name="peq_profile_2">Profiel 2</string>
+    <string name="cd_mseb">MSEB in-/uitschakelen</string>
+    <string name="cd_eq">Equalizer in-/uitschakelen</string>
+    <string name="cd_peq">Parametrische equalizer in-/uitschakelen</string>
+    <string name="cd_peq_profile">PEQ-profiel wisselen</string>
 </resources>

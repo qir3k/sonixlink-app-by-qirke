@@ -156,4 +156,22 @@
 	<string name="stream_countries">国で探す</string>
 	<string name="stream_genres">ジャンルで探す</string>
 	<string name="stream_languages">言語で探す</string>
+    <string name="action_dsp">イコライザー &amp; DSP</string>
+    <string name="dsp_title">オーディオ &amp; DSP</string>
+    <string name="mseb">MSEB</string>
+    <string name="mseb_title">MSEB (MageSound)</string>
+    <string name="mseb_desc">アコースティックチューニング</string>
+    <string name="eq">EQ</string>
+    <string name="eq_title">グラフィックEQ</string>
+    <string name="eq_desc">10バンドイコライザー</string>
+    <string name="peq">PEQ</string>
+    <string name="peq_title">パラメトリックEQ</string>
+    <string name="peq_desc">パラメトリックイコライザー</string>
+    <string name="peq_profile">PEQプロファイル</string>
+    <string name="peq_profile_1">プロファイル 1</string>
+    <string name="peq_profile_2">プロファイル 2</string>
+    <string name="cd_mseb">MSEBの切り替え</string>
+    <string name="cd_eq">イコライザーの切り替え</string>
+    <string name="cd_peq">パラメトリックEQの切り替え</string>
+    <string name="cd_peq_profile">PEQプロファイルの切り替え</string>
 </resources>

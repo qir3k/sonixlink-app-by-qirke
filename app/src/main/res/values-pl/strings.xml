@@ -159,4 +159,22 @@
 	<string name="stream_countries">Przeglądaj według kraju</string>
 	<string name="stream_genres">Przeglądaj według gatunku</string>
 	<string name="stream_languages">Przeglądaj według języka</string>
+    <string name="action_dsp">Korektor i DSP</string>
+    <string name="dsp_title">Dźwięk i DSP</string>
+    <string name="mseb">MSEB</string>
+    <string name="mseb_title">MSEB (MageSound)</string>
+    <string name="mseb_desc">Strojenie akustyczne</string>
+    <string name="eq">EQ</string>
+    <string name="eq_title">Korektor graficzny</string>
+    <string name="eq_desc">Korektor 10-pasmowy</string>
+    <string name="peq">PEQ</string>
+    <string name="peq_title">Korektor parametryczny</string>
+    <string name="peq_desc">Korektor parametryczny</string>
+    <string name="peq_profile">Profil PEQ</string>
+    <string name="peq_profile_1">Profil 1</string>
+    <string name="peq_profile_2">Profil 2</string>
+    <string name="cd_mseb">Przełącz MSEB</string>
+    <string name="cd_eq">Przełącz korektor</string>
+    <string name="cd_peq">Przełącz korektor parametryczny</string>
+    <string name="cd_peq_profile">Przełącz profil PEQ</string>
 </resources>
