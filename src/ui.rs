@@ -55,7 +55,7 @@ pub struct SonixApp {
 
 impl SonixApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // Set dark visuals
+        // High-end Dark Monochrome Visuals
         let mut visuals = egui::Visuals::dark();
         visuals.panel_fill = BG_PANEL;
         visuals.window_fill = BG_CARD;
@@ -189,22 +189,22 @@ impl SonixApp {
         let center = rect.center();
         let painter = ui.painter();
 
-        // Card base with rounded corners
-        painter.rect_filled(rect, 12.0, BG_CARD);
-        painter.rect_stroke(rect, 12.0, Stroke::new(1.0, BORDER), egui::StrokeKind::Inside);
+        // Matte dark card base
+        painter.rect_filled(rect, 8.0, BG_CARD);
+        painter.rect_stroke(rect, 8.0, Stroke::new(1.0, BORDER), egui::StrokeKind::Inside);
 
         // Outer Vinyl Disc
-        painter.circle_filled(center, size * 0.44, Color32::from_rgb(18, 19, 24));
-        painter.circle_stroke(center, size * 0.44, Stroke::new(1.5, Color32::from_rgb(38, 41, 51)));
+        painter.circle_filled(center, size * 0.44, Color32::from_rgb(16, 17, 22));
+        painter.circle_stroke(center, size * 0.44, Stroke::new(1.2, Color32::from_rgb(32, 35, 45)));
 
         // Concentric Vinyl Grooves
         for r_pct in &[0.38, 0.31, 0.24, 0.17] {
-            painter.circle_stroke(center, size * r_pct, Stroke::new(1.0, Color32::from_rgb(28, 31, 40)));
+            painter.circle_stroke(center, size * r_pct, Stroke::new(1.0, Color32::from_rgb(24, 26, 34)));
         }
 
         // Center Label Disc
         let label_accent = self.effective_accent_color();
-        painter.circle_filled(center, size * 0.12, Color32::from_rgb(26, 29, 37));
+        painter.circle_filled(center, size * 0.12, Color32::from_rgb(22, 24, 32));
         painter.circle_stroke(center, size * 0.12, Stroke::new(1.5, label_accent));
         // Center spindle hole
         painter.circle_filled(center, size * 0.03, BG_BASE);
@@ -230,7 +230,6 @@ impl eframe::App for SonixApp {
             if self.current_state.is_none() {
                 first_connect = true;
             }
-            // Update device choices
             if let Some(star) = state.fav_star {
                 self.settings.device_fav_mark = if star { "star".into() } else { "heart".into() };
             }
@@ -268,9 +267,9 @@ impl eframe::App for SonixApp {
 
         let accent = self.effective_accent_color();
 
-        // 3. Robust Three-Panel Layout (Left Sidebar, Right Player, Center Library)
+        // 3. Three-Panel Layout: Pure Dark Monochrome with Accent Highlight
         egui::Panel::left("left_sidebar")
-            .exact_size(230.0)
+            .exact_size(220.0)
             .resizable(false)
             .frame(Frame::new().fill(BG_PANEL).inner_margin(12.0))
             .show(ui, |ui| {
@@ -302,34 +301,34 @@ impl eframe::App for SonixApp {
             self.render_devices_modal(&ctx, accent);
         }
 
-        // Request continuous repaint for smooth animations and clock updates
         ctx.request_repaint_after(Duration::from_millis(100));
     }
 }
 
 impl SonixApp {
     // -------------------------------------------------------------------------
-    // LEFT SIDEBAR
+    // LEFT SIDEBAR (Clean Monochrome Typography)
     // -------------------------------------------------------------------------
     fn render_left_sidebar(&mut self, ui: &mut Ui, accent: Color32) {
-        // 1. App Brand Header
+        // 1. Sleek Brand Header (No cartoon emojis)
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("⚡").color(accent).size(22.0).strong());
+            let (rect, _) = ui.allocate_exact_size(Vec2::new(3.5, 24.0), egui::Sense::hover());
+            ui.painter().rect_filled(rect, 1.5, accent);
+            ui.add_space(4.0);
             ui.vertical(|ui| {
-                ui.label(egui::RichText::new("SonixLink").color(TEXT_PRIMARY).size(16.0).strong());
-                let dev_badge = egui::RichText::new("TempoTec Variations V1").color(accent).size(9.5).strong();
-                ui.label(dev_badge);
+                ui.label(egui::RichText::new("SONIXLINK").color(TEXT_PRIMARY).size(13.5).strong());
+                ui.label(egui::RichText::new("TempoTec Variations V1").color(TEXT_MUTED).size(9.0));
             });
         });
 
         ui.add_space(10.0);
 
-        // 2. Connection Card
+        // 2. Connection Card (Clean pro-audio design)
         Frame::new()
             .fill(BG_CARD)
             .stroke(Stroke::new(1.0, BORDER))
-            .corner_radius(8.0)
-            .inner_margin(10.0)
+            .corner_radius(6.0)
+            .inner_margin(Vec2::new(10.0, 8.0))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     let (dot_color, dev_name) = if self.current_state.is_some() {
@@ -337,14 +336,14 @@ impl SonixApp {
                     } else {
                         (STATUS_RED, "Disconnected")
                     };
-                    ui.label(egui::RichText::new("●").color(dot_color).size(11.0));
+                    ui.label(egui::RichText::new("●").color(dot_color).size(10.0));
                     ui.label(egui::RichText::new(dev_name).color(TEXT_PRIMARY).size(11.0).strong());
 
                     if let Some(ref s) = self.current_state {
                         if s.battery >= 0 {
-                            let bolt = if s.charging { "⚡ " } else { "🔋 " };
+                            let charge_txt = if s.charging { format!("{}% ⚡", s.battery) } else { format!("{}%", s.battery) };
                             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                ui.label(egui::RichText::new(format!("{}{}%", bolt, s.battery)).color(TEXT_SECONDARY).size(10.0).strong());
+                                ui.label(egui::RichText::new(charge_txt).color(TEXT_SECONDARY).size(10.0));
                             });
                         }
                     }
@@ -354,20 +353,20 @@ impl SonixApp {
 
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
-                    if ui.add(egui::Button::new("🔍 Devices").corner_radius(4.0)).clicked() {
+                    if ui.add(egui::Button::new("Devices").corner_radius(4.0)).clicked() {
                         self.show_devices = true;
                     }
-                    let sync_lbl = if self.is_syncing_db { "↻ Syncing..." } else { "↻ Sync DB" };
+                    let sync_lbl = if self.is_syncing_db { "Syncing..." } else { "Sync DB" };
                     if ui.add(egui::Button::new(sync_lbl).corner_radius(4.0)).clicked() {
                         self.trigger_sync_db();
                     }
                 });
             });
 
-        ui.add_space(10.0);
+        ui.add_space(12.0);
 
-        // 3. Navigation Links in scrollable area
-        let bottom_height = 80.0;
+        // 3. Navigation Links (Minimalist Typography, No cartoon icons)
+        let bottom_height = 42.0;
         let nav_height = (ui.available_height() - bottom_height).max(100.0);
 
         ui.allocate_ui_with_layout(
@@ -376,33 +375,31 @@ impl SonixApp {
             |ui| {
                 ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                     ui.label(egui::RichText::new("LIBRARY").color(TEXT_MUTED).size(9.0).strong());
-                    self.nav_button(ui, "tracks", "🎵  All Tracks", accent);
-                    self.nav_button(ui, "albums", "💿  Albums", accent);
-                    self.nav_button(ui, "artists", "👤  Artists", accent);
-                    self.nav_button(ui, "genres", "🏷️  Genres", accent);
-                    self.nav_button(ui, "years", "📅  Years", accent);
+                    ui.add_space(2.0);
+                    self.nav_button(ui, "tracks", "All Tracks", accent);
+                    self.nav_button(ui, "albums", "Albums", accent);
+                    self.nav_button(ui, "artists", "Artists", accent);
+                    self.nav_button(ui, "genres", "Genres", accent);
+                    self.nav_button(ui, "years", "Years", accent);
 
-                    ui.add_space(8.0);
+                    ui.add_space(10.0);
                     ui.label(egui::RichText::new("COLLECTION").color(TEXT_MUTED).size(9.0).strong());
-                    let fav_label = if self.settings.effective_fav_mark() == "star" { "⭐  Favourites" } else { "♥  Favourites" };
-                    self.nav_button(ui, "favourites", fav_label, accent);
+                    ui.add_space(2.0);
+                    self.nav_button(ui, "favourites", "Favourites", accent);
 
-                    ui.add_space(8.0);
+                    ui.add_space(10.0);
                     ui.label(egui::RichText::new("ONLINE").color(TEXT_MUTED).size(9.0).strong());
-                    self.nav_button(ui, "streaming", "🌐  Streaming", accent);
+                    ui.add_space(2.0);
+                    self.nav_button(ui, "streaming", "Streaming", accent);
                 });
             },
         );
 
         ui.add_space(8.0);
 
-        // 4. Bottom Settings & DSP Buttons
-        if ui.add(egui::Button::new(egui::RichText::new("⚙️  Settings  ›").size(11.0).strong()).min_size(Vec2::new(ui.available_width(), 30.0)).corner_radius(6.0)).clicked() {
+        // 4. Bottom Pinned Settings Button
+        if ui.add(egui::Button::new(egui::RichText::new("Settings").size(11.0).strong()).min_size(Vec2::new(ui.available_width(), 30.0)).corner_radius(5.0)).clicked() {
             self.show_settings = true;
-        }
-        ui.add_space(4.0);
-        if ui.add(egui::Button::new(egui::RichText::new("🎛️  Audio & DSP Settings  ›").size(11.0).strong()).min_size(Vec2::new(ui.available_width(), 30.0)).corner_radius(6.0)).clicked() {
-            self.show_dsp = true;
         }
     }
 
@@ -413,12 +410,12 @@ impl SonixApp {
             egui::Button::new(text.color(Color32::WHITE).strong())
                 .fill(BG_CARD)
                 .stroke(Stroke::new(1.0, accent))
-                .corner_radius(6.0)
+                .corner_radius(5.0)
                 .min_size(Vec2::new(ui.available_width(), 28.0))
         } else {
             egui::Button::new(text.color(TEXT_SECONDARY))
                 .fill(Color32::TRANSPARENT)
-                .corner_radius(6.0)
+                .corner_radius(5.0)
                 .min_size(Vec2::new(ui.available_width(), 28.0))
         };
 
@@ -444,7 +441,7 @@ impl SonixApp {
                 "streaming" => "Streaming Services",
                 _ => "Library",
             };
-            ui.label(egui::RichText::new(title).color(TEXT_PRIMARY).size(18.0).strong());
+            ui.label(egui::RichText::new(title).color(TEXT_PRIMARY).size(17.0).strong());
 
             let count_str = match self.current_nav.as_str() {
                 "tracks" => format!("{} tracks", self.tracks.len()),
@@ -458,12 +455,12 @@ impl SonixApp {
 
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.spacing_mut().item_spacing = Vec2::new(8.0, 0.0);
-                if header_pill_button(ui, "▶", "Play All", accent, Color32::WHITE).clicked() {
+                if header_pill_button(ui, "▶", "Play All", true, accent).clicked() {
                     if let Some(first) = self.tracks.first() {
                         self.client.command("play_path", &[("path", &first.path)]);
                     }
                 }
-                if header_pill_button(ui, "⇄", "Shuffle", BG_CARD, TEXT_PRIMARY).clicked() {
+                if header_pill_button(ui, "⇄", "Shuffle", false, accent).clicked() {
                     self.client.command("mode", &[("value", "shuffle")]);
                     if let Some(first) = self.tracks.first() {
                         self.client.command("play_path", &[("path", &first.path)]);
@@ -472,11 +469,14 @@ impl SonixApp {
             });
         });
 
-        // 2. Search Field
+        // 2. Minimalist Search Field
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("🔍").size(12.0).color(TEXT_MUTED));
-            ui.add(egui::TextEdit::singleline(&mut self.search_query).hint_text("Search library...").desired_width(ui.available_width() - 10.0));
+            ui.add(
+                egui::TextEdit::singleline(&mut self.search_query)
+                    .hint_text("Search tracks, artists, albums...")
+                    .desired_width(ui.available_width() - 8.0)
+            );
         });
 
         ui.add_space(10.0);
@@ -524,7 +524,7 @@ impl SonixApp {
                 let is_current = self.current_state.as_ref().map(|s| s.path == track.path).unwrap_or(false);
 
                 let fill = if is_current {
-                    Color32::from_rgba_premultiplied(accent.r(), accent.g(), accent.b(), 40)
+                    Color32::from_rgba_premultiplied(accent.r(), accent.g(), accent.b(), 35)
                 } else {
                     row_bg
                 };
@@ -574,7 +574,7 @@ impl SonixApp {
     }
 
     // -------------------------------------------------------------------------
-    // STREAMING SERVICES VIEW
+    // STREAMING SERVICES VIEW (Clean Monochrome Cards)
     // -------------------------------------------------------------------------
     fn render_streaming_view(&mut self, ui: &mut Ui, accent: Color32) {
         if let Some(ref service_id) = self.active_stream_service.clone() {
@@ -583,10 +583,10 @@ impl SonixApp {
             let mut to_open: Option<String> = None;
 
             ui.horizontal(|ui| {
-                if ui.add(egui::Button::new("‹ Back to Services").corner_radius(4.0)).clicked() {
+                if ui.add(egui::Button::new("‹ Back").corner_radius(4.0)).clicked() {
                     back_clicked = true;
                 }
-                ui.label(egui::RichText::new(format!("Streaming: {}", service_id.to_uppercase())).size(14.0).strong().color(accent));
+                ui.label(egui::RichText::new(format!("Streaming: {}", service_id.to_uppercase())).size(13.5).strong().color(accent));
             });
 
             if back_clicked {
@@ -601,8 +601,8 @@ impl SonixApp {
                     let fill = if idx % 2 == 0 { ROW_EVEN } else { ROW_ODD };
                     Frame::new().fill(fill).corner_radius(4.0).inner_margin(8.0).show(ui, |ui| {
                         let resp = ui.horizontal(|ui| {
-                            let icon = if row.playable { "▶" } else { "📁" };
-                            ui.label(egui::RichText::new(icon).color(accent).size(12.0));
+                            let icon = if row.playable { "▶" } else { "▪" };
+                            ui.label(egui::RichText::new(icon).color(accent).size(11.0));
                             ui.label(egui::RichText::new(&row.title).size(12.0).strong().color(TEXT_PRIMARY));
                             if !row.subtitle.is_empty() {
                                 ui.label(egui::RichText::new(&row.subtitle).size(11.0).color(TEXT_MUTED));
@@ -629,7 +629,7 @@ impl SonixApp {
             }
         } else {
             // Service List
-            ui.label(egui::RichText::new("Choose a streaming service connected to your player:").color(TEXT_SECONDARY).size(12.0));
+            ui.label(egui::RichText::new("Connected streaming addons on your player:").color(TEXT_SECONDARY).size(11.5));
             ui.add_space(10.0);
 
             let mut chosen_service: Option<String> = None;
@@ -638,22 +638,12 @@ impl SonixApp {
                 Frame::new()
                     .fill(BG_CARD)
                     .stroke(Stroke::new(1.0, BORDER))
-                    .corner_radius(8.0)
-                    .inner_margin(14.0)
+                    .corner_radius(6.0)
+                    .inner_margin(12.0)
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            let (badge_icon, brand_color) = match service_id.as_str() {
-                                "youtube" => ("▶", Color32::from_rgb(255, 0, 0)),
-                                "tidal" => ("◆", Color32::from_rgb(0, 255, 255)),
-                                "qobuz" => ("●", Color32::from_rgb(0, 160, 255)),
-                                "podcasts" => ("🎙", Color32::from_rgb(180, 100, 255)),
-                                "radio" => ("📻", Color32::from_rgb(46, 204, 113)),
-                                _ => ("🌐", accent),
-                            };
-                            ui.label(egui::RichText::new(badge_icon).color(brand_color).size(18.0).strong());
-                            ui.add_space(8.0);
                             ui.vertical(|ui| {
-                                ui.label(egui::RichText::new(&service.name).color(TEXT_PRIMARY).size(14.0).strong());
+                                ui.label(egui::RichText::new(&service.name).color(TEXT_PRIMARY).size(13.5).strong());
                                 let status_text = if !service.available {
                                     "Not configured on player"
                                 } else if service.id == "youtube" || service.signed_in {
@@ -661,17 +651,17 @@ impl SonixApp {
                                 } else {
                                     "Signed out"
                                 };
-                                ui.label(egui::RichText::new(status_text).color(TEXT_MUTED).size(10.5));
+                                ui.label(egui::RichText::new(status_text).color(TEXT_MUTED).size(10.0));
                             });
 
                             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                if ui.add(egui::Button::new("Browse  ›").corner_radius(5.0).fill(accent)).clicked() {
+                                if ui.add(egui::Button::new("Browse").corner_radius(4.0).fill(accent)).clicked() {
                                     chosen_service = Some(service_id.clone());
                                 }
                             });
                         });
                     });
-                ui.add_space(8.0);
+                ui.add_space(6.0);
             }
 
             if let Some(s) = chosen_service {
@@ -689,7 +679,7 @@ impl SonixApp {
                 // 1. Album Artwork
                 let art_size = (ui.available_width() - 10.0).clamp(160.0, 240.0);
                 if let Some(ref tex) = self.art_texture {
-                    ui.add(egui::Image::new(tex).fit_to_exact_size(Vec2::splat(art_size)).corner_radius(12.0));
+                    ui.add(egui::Image::new(tex).fit_to_exact_size(Vec2::splat(art_size)).corner_radius(8.0));
                 } else {
                     self.draw_vinyl_placeholder(ui, art_size);
                 }
@@ -706,7 +696,7 @@ impl SonixApp {
                     ("No Track Playing".to_string(), "Connect player to start".to_string(), String::new())
                 };
 
-                ui.add(egui::Label::new(egui::RichText::new(title).size(14.0).strong().color(TEXT_PRIMARY)).truncate());
+                ui.add(egui::Label::new(egui::RichText::new(title).size(13.5).strong().color(TEXT_PRIMARY)).truncate());
                 ui.add(egui::Label::new(egui::RichText::new(artist).size(11.0).color(TEXT_SECONDARY)).truncate());
 
                 if !badge.is_empty() {
@@ -714,16 +704,16 @@ impl SonixApp {
                     Frame::new()
                         .fill(BG_CARD)
                         .stroke(Stroke::new(1.0, BORDER))
-                        .corner_radius(10.0)
+                        .corner_radius(8.0)
                         .inner_margin(Vec2::new(8.0, 2.0))
                         .show(ui, |ui| {
-                            ui.label(egui::RichText::new(badge).size(9.5).color(accent).strong());
+                            ui.label(egui::RichText::new(badge).size(9.0).color(accent).strong());
                         });
                 }
 
                 ui.add_space(10.0);
 
-                // 3. Modern Rounded Seekbar & Timestamps
+                // 3. Rounded Seekbar & Timestamps
                 let total_sec = self.current_state.as_ref().map(|s| s.duration).unwrap_or(0);
                 let max_f = (total_sec as f32).max(1.0);
 
@@ -740,41 +730,41 @@ impl SonixApp {
                 ui.horizontal(|ui| {
                     let cur_str = format_duration(self.seek_val as u32);
                     let tot_str = format_duration(total_sec);
-                    ui.label(egui::RichText::new(cur_str).size(10.0).color(TEXT_MUTED));
+                    ui.label(egui::RichText::new(cur_str).size(9.5).color(TEXT_MUTED));
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        ui.label(egui::RichText::new(tot_str).size(10.0).color(TEXT_MUTED));
+                        ui.label(egui::RichText::new(tot_str).size(9.5).color(TEXT_MUTED));
                     });
                 });
 
-                ui.add_space(10.0);
+                ui.add_space(12.0);
 
-                // 4. Transport Controls
+                // 4. Vector Transport Controls (All centered vertically)
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing = Vec2::new(10.0, 0.0);
 
-                    // Shuffle / Mode
+                    // Mode Toggle (Shuffle / Repeat / Normal)
                     let mode_str = self.current_state.as_ref().map(|s| s.mode.clone()).unwrap_or_else(|| "normal".to_string());
                     if playback_mode_button(ui, &mode_str, accent, 32.0).clicked() {
                         self.client.command("mode", &[("value", "next")]);
                     }
 
-                    // Previous
+                    // Previous Track
                     if prev_track_button(ui, 32.0).clicked() {
                         self.client.prev();
                     }
 
-                    // Large Play / Pause Vector Button
+                    // Large Circular Play / Pause Vector Button
                     let is_playing = self.current_state.as_ref().map(|s| s.is_playing()).unwrap_or(false);
                     if play_pause_button(ui, is_playing, accent, 46.0).clicked() {
                         self.client.toggle_play();
                     }
 
-                    // Next
+                    // Next Track
                     if next_track_button(ui, 32.0).clicked() {
                         self.client.next();
                     }
 
-                    // Favourite Button
+                    // Mathematical Flawless Vector Heart / Star
                     let is_fav = self.current_state.as_ref().map(|s| s.favourite).unwrap_or(false);
                     let fav_style = self.settings.effective_fav_mark();
                     if favourite_button(ui, is_fav, &fav_style, accent, 32.0).clicked() {
@@ -784,19 +774,19 @@ impl SonixApp {
                     }
                 });
 
-                ui.add_space(12.0);
+                ui.add_space(14.0);
 
                 // 5. Hardware DSP Quick-Pills Card
                 Frame::new()
                     .fill(BG_CARD)
                     .stroke(Stroke::new(1.0, BORDER))
-                    .corner_radius(8.0)
+                    .corner_radius(6.0)
                     .inner_margin(8.0)
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.label(egui::RichText::new("HARDWARE DSP").size(8.5).strong().color(TEXT_MUTED));
                             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                if ui.add(egui::Button::new(egui::RichText::new("Tune ⚙").size(9.0).color(accent)).frame(false)).clicked() {
+                                if ui.add(egui::Button::new(egui::RichText::new("Tune").size(9.0).color(accent)).frame(false)).clicked() {
                                     self.show_dsp = true;
                                 }
                             });
@@ -829,7 +819,7 @@ impl SonixApp {
                         });
                     });
 
-                ui.add_space(12.0);
+                ui.add_space(14.0);
 
                 // 6. Modern Rounded Volume Slider
                 ui.horizontal(|ui| {
@@ -855,12 +845,12 @@ impl SonixApp {
     // MODALS: Settings, DSP, Devices
     // -------------------------------------------------------------------------
     fn render_settings_modal(&mut self, ctx: &egui::Context, accent: Color32) {
-        egui::Window::new("⚙️  Application Settings")
+        egui::Window::new("Settings")
             .collapsible(false)
             .resizable(false)
             .default_width(450.0)
             .show(ctx, |ui| {
-                ui.label(egui::RichText::new("Theme & Accent Color:").strong().color(TEXT_PRIMARY));
+                ui.label(egui::RichText::new("Accent Color:").strong().color(TEXT_PRIMARY));
                 ui.add_space(6.0);
 
                 let presets = ACCENT_PRESETS;
@@ -870,7 +860,7 @@ impl SonixApp {
                         let is_sel = self.settings.accent_preference == preset.id;
                         let mut btn = egui::Button::new(egui::RichText::new(preset.name).size(11.0).color(Color32::WHITE))
                             .fill(color)
-                            .corner_radius(6.0)
+                            .corner_radius(5.0)
                             .min_size(Vec2::new(95.0, 26.0));
 
                         if is_sel {
@@ -889,7 +879,7 @@ impl SonixApp {
                 });
 
                 ui.add_space(10.0);
-                if ui.selectable_label(self.settings.accent_preference == "device", "🎨 Follow Player Hardware Accent").clicked() {
+                if ui.selectable_label(self.settings.accent_preference == "device", "Follow Player Hardware Accent").clicked() {
                     self.settings.accent_preference = "device".to_string();
                     self.settings.save();
                 }
@@ -899,15 +889,15 @@ impl SonixApp {
                 ui.add_space(8.0);
 
                 // Favourite Mark
-                Frame::new().fill(BG_CARD).stroke(Stroke::new(1.0, BORDER)).corner_radius(8.0).inner_margin(12.0).show(ui, |ui| {
-                    ui.label(egui::RichText::new("⭐   Favourite Icon Style").size(12.0).strong().color(TEXT_PRIMARY));
+                Frame::new().fill(BG_CARD).stroke(Stroke::new(1.0, BORDER)).corner_radius(6.0).inner_margin(12.0).show(ui, |ui| {
+                    ui.label(egui::RichText::new("Favourite Icon Style").size(12.0).strong().color(TEXT_PRIMARY));
                     ui.add_space(6.0);
                     ui.horizontal(|ui| {
-                        if ui.selectable_label(self.settings.fav_mark_preference == "heart", "Heart (♥ / ♡)").clicked() {
+                        if ui.selectable_label(self.settings.fav_mark_preference == "heart", "Heart").clicked() {
                             self.settings.fav_mark_preference = "heart".to_string();
                             self.settings.save();
                         }
-                        if ui.selectable_label(self.settings.fav_mark_preference == "star", "Star (★ / ☆)").clicked() {
+                        if ui.selectable_label(self.settings.fav_mark_preference == "star", "Star").clicked() {
                             self.settings.fav_mark_preference = "star".to_string();
                             self.settings.save();
                         }
@@ -917,8 +907,8 @@ impl SonixApp {
                 ui.add_space(8.0);
 
                 // Volume Step
-                Frame::new().fill(BG_CARD).stroke(Stroke::new(1.0, BORDER)).corner_radius(8.0).inner_margin(12.0).show(ui, |ui| {
-                    ui.label(egui::RichText::new("🔊   Volume Step").size(12.0).strong().color(TEXT_PRIMARY));
+                Frame::new().fill(BG_CARD).stroke(Stroke::new(1.0, BORDER)).corner_radius(6.0).inner_margin(12.0).show(ui, |ui| {
+                    ui.label(egui::RichText::new("Volume Step").size(12.0).strong().color(TEXT_PRIMARY));
                     ui.add_space(6.0);
                     ui.horizontal(|ui| {
                         for s in [1, 2, 3, 4, 5] {
@@ -941,7 +931,7 @@ impl SonixApp {
     }
 
     fn render_dsp_modal(&mut self, ctx: &egui::Context, accent: Color32) {
-        egui::Window::new("🎛️  Hardware Equalizer & DSP Settings")
+        egui::Window::new("Hardware Equalizer & DSP Settings")
             .collapsible(false)
             .resizable(false)
             .default_width(420.0)
@@ -954,7 +944,7 @@ impl SonixApp {
                 let peq = self.current_state.as_ref().map(|s| s.peq).unwrap_or(false);
                 let prof = self.current_state.as_ref().map(|s| s.peq_profile).unwrap_or(1);
 
-                Frame::new().fill(BG_CARD).stroke(Stroke::new(1.0, BORDER)).corner_radius(8.0).inner_margin(12.0).show(ui, |ui| {
+                Frame::new().fill(BG_CARD).stroke(Stroke::new(1.0, BORDER)).corner_radius(6.0).inner_margin(12.0).show(ui, |ui| {
                     ui.horizontal(|ui| {
                         ui.label(egui::RichText::new("MSEB Engine:").strong().color(TEXT_PRIMARY));
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -1011,7 +1001,7 @@ impl SonixApp {
     }
 
     fn render_devices_modal(&mut self, ctx: &egui::Context, accent: Color32) {
-        egui::Window::new("🔍  Devices on Network")
+        egui::Window::new("Devices on Network")
             .collapsible(false)
             .resizable(false)
             .default_width(380.0)

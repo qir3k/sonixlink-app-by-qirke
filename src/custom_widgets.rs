@@ -13,8 +13,8 @@ pub fn rounded_slider(
     let mut changed = false;
 
     let cy = rect.center().y;
-    let track_h = 6.0;
-    let track_r = 3.0;
+    let track_h = 4.0;
+    let track_r = 2.0;
     let track_rect = Rect::from_min_max(
         Pos2::new(rect.min.x, cy - track_h / 2.0),
         Pos2::new(rect.max.x, cy + track_h / 2.0),
@@ -38,13 +38,13 @@ pub fn rounded_slider(
     let is_hovered = response.hovered() || response.dragged();
     let thumb_x = rect.min.x + progress * rect.width();
     let thumb_center = Pos2::new(thumb_x, cy);
-    let thumb_r = if is_hovered { 8.5 } else { 7.0 };
+    let thumb_r = if is_hovered { 7.5 } else { 6.0 };
 
     let painter = ui.painter();
 
     // 1. Background Track
-    painter.rect_filled(track_rect, track_r, Color32::from_rgb(32, 35, 45));
-    painter.rect_stroke(track_rect, track_r, Stroke::new(1.0, Color32::from_rgb(45, 50, 65)), egui::StrokeKind::Inside);
+    painter.rect_filled(track_rect, track_r, Color32::from_rgb(28, 30, 38));
+    painter.rect_stroke(track_rect, track_r, Stroke::new(1.0, Color32::from_rgb(42, 46, 58)), egui::StrokeKind::Inside);
 
     // 2. Active Progress Fill
     if progress > 0.001 {
@@ -55,16 +55,12 @@ pub fn rounded_slider(
         painter.rect_filled(active_rect, track_r, accent);
     }
 
-    // 3. Thumb Glow Halo (when hovered or dragged)
+    // 3. Thumb Knob
     if is_hovered {
-        painter.circle_filled(thumb_center, thumb_r + 4.0, Color32::from_rgba_premultiplied(accent.r(), accent.g(), accent.b(), 60));
+        painter.circle_filled(thumb_center, thumb_r + 3.0, Color32::from_rgba_premultiplied(accent.r(), accent.g(), accent.b(), 50));
     }
-
-    // 4. Thumb Knob
     painter.circle_filled(thumb_center, thumb_r, Color32::WHITE);
     painter.circle_stroke(thumb_center, thumb_r, Stroke::new(1.5, accent));
-    // Center micro dot
-    painter.circle_filled(thumb_center, 2.5, accent);
 
     (response, changed)
 }
@@ -80,7 +76,7 @@ pub fn play_pause_button(ui: &mut Ui, is_playing: bool, accent: Color32, diamete
 
     // Soft glowing halo on hover
     if is_hovered {
-        painter.circle_filled(center, r + 4.0, Color32::from_rgba_premultiplied(accent.r(), accent.g(), accent.b(), 50));
+        painter.circle_filled(center, r + 4.0, Color32::from_rgba_premultiplied(accent.r(), accent.g(), accent.b(), 60));
     }
 
     // Background circle in accent
@@ -90,8 +86,8 @@ pub fn play_pause_button(ui: &mut Ui, is_playing: bool, accent: Color32, diamete
     let icon_color = Color32::WHITE;
     if is_playing {
         // Pause: Two rounded vertical bars
-        let bar_w = 4.5;
-        let bar_h = 16.0;
+        let bar_w = 4.0;
+        let bar_h = 15.0;
         let gap = 5.0;
         let left_bar = Rect::from_min_max(
             Pos2::new(center.x - gap / 2.0 - bar_w, center.y - bar_h / 2.0),
@@ -104,9 +100,9 @@ pub fn play_pause_button(ui: &mut Ui, is_playing: bool, accent: Color32, diamete
         painter.rect_filled(left_bar, 1.5, icon_color);
         painter.rect_filled(right_bar, 1.5, icon_color);
     } else {
-        // Play: Anti-aliased Equilateral Triangle pointing right
-        let tri_w = 15.0;
-        let tri_h = 16.0;
+        // Play: Clean geometric triangle pointing right
+        let tri_w = 14.0;
+        let tri_h = 15.0;
         let p1 = Pos2::new(center.x - tri_w / 3.0, center.y - tri_h / 2.0);
         let p2 = Pos2::new(center.x - tri_w / 3.0, center.y + tri_h / 2.0);
         let p3 = Pos2::new(center.x + 2.0 * tri_w / 3.0, center.y);
@@ -120,29 +116,29 @@ pub fn prev_track_button(ui: &mut Ui, size: f32) -> Response {
     let (rect, response) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
     let center = rect.center();
     let is_hovered = response.hovered();
-    let color = if is_hovered { Color32::WHITE } else { Color32::from_rgb(200, 205, 215) };
+    let color = if is_hovered { Color32::WHITE } else { Color32::from_rgb(180, 185, 195) };
     let painter = ui.painter();
 
     if is_hovered {
-        painter.circle_filled(center, size / 2.0, Color32::from_rgb(34, 37, 48));
+        painter.circle_filled(center, size / 2.0, Color32::from_rgb(32, 35, 45));
     }
 
     // Stop Bar
     let bar_rect = Rect::from_min_max(
-        Pos2::new(center.x - 7.0, center.y - 7.0),
-        Pos2::new(center.x - 5.0, center.y + 7.0),
+        Pos2::new(center.x - 7.0, center.y - 6.5),
+        Pos2::new(center.x - 5.0, center.y + 6.5),
     );
     painter.rect_filled(bar_rect, 1.0, color);
 
     // Left Triangles
     let t1 = Pos2::new(center.x - 5.0, center.y);
-    let t2 = Pos2::new(center.x + 1.0, center.y - 6.0);
-    let t3 = Pos2::new(center.x + 1.0, center.y + 6.0);
+    let t2 = Pos2::new(center.x + 1.0, center.y - 5.5);
+    let t3 = Pos2::new(center.x + 1.0, center.y + 5.5);
     painter.add(egui::Shape::convex_polygon(vec![t1, t2, t3], color, Stroke::NONE));
 
     let t4 = Pos2::new(center.x + 1.0, center.y);
-    let t5 = Pos2::new(center.x + 7.0, center.y - 6.0);
-    let t6 = Pos2::new(center.x + 7.0, center.y + 6.0);
+    let t5 = Pos2::new(center.x + 7.0, center.y - 5.5);
+    let t6 = Pos2::new(center.x + 7.0, center.y + 5.5);
     painter.add(egui::Shape::convex_polygon(vec![t4, t5, t6], color, Stroke::NONE));
 
     response
@@ -152,28 +148,28 @@ pub fn next_track_button(ui: &mut Ui, size: f32) -> Response {
     let (rect, response) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
     let center = rect.center();
     let is_hovered = response.hovered();
-    let color = if is_hovered { Color32::WHITE } else { Color32::from_rgb(200, 205, 215) };
+    let color = if is_hovered { Color32::WHITE } else { Color32::from_rgb(180, 185, 195) };
     let painter = ui.painter();
 
     if is_hovered {
-        painter.circle_filled(center, size / 2.0, Color32::from_rgb(34, 37, 48));
+        painter.circle_filled(center, size / 2.0, Color32::from_rgb(32, 35, 45));
     }
 
     // Right Triangles
-    let t1 = Pos2::new(center.x - 7.0, center.y - 6.0);
+    let t1 = Pos2::new(center.x - 7.0, center.y - 5.5);
     let t2 = Pos2::new(center.x - 1.0, center.y);
-    let t3 = Pos2::new(center.x - 7.0, center.y + 6.0);
+    let t3 = Pos2::new(center.x - 7.0, center.y + 5.5);
     painter.add(egui::Shape::convex_polygon(vec![t1, t2, t3], color, Stroke::NONE));
 
-    let t4 = Pos2::new(center.x - 1.0, center.y - 6.0);
+    let t4 = Pos2::new(center.x - 1.0, center.y - 5.5);
     let t5 = Pos2::new(center.x + 5.0, center.y);
-    let t6 = Pos2::new(center.x - 1.0, center.y + 6.0);
+    let t6 = Pos2::new(center.x - 1.0, center.y + 5.5);
     painter.add(egui::Shape::convex_polygon(vec![t4, t5, t6], color, Stroke::NONE));
 
     // Stop Bar
     let bar_rect = Rect::from_min_max(
-        Pos2::new(center.x + 5.0, center.y - 7.0),
-        Pos2::new(center.x + 7.0, center.y + 7.0),
+        Pos2::new(center.x + 5.0, center.y - 6.5),
+        Pos2::new(center.x + 7.0, center.y + 6.5),
     );
     painter.rect_filled(bar_rect, 1.0, color);
 
@@ -186,15 +182,21 @@ pub fn favourite_button(ui: &mut Ui, is_fav: bool, fav_style: &str, accent: Colo
     let is_hovered = response.hovered();
     let painter = ui.painter();
 
-    let icon_color = if is_fav { accent } else if is_hovered { Color32::WHITE } else { Color32::from_rgb(160, 166, 181) };
+    let icon_color = if is_fav {
+        accent
+    } else if is_hovered {
+        Color32::WHITE
+    } else {
+        Color32::from_rgb(150, 155, 170)
+    };
 
-    if is_fav && is_hovered {
-        painter.circle_filled(center, size / 2.0, Color32::from_rgba_premultiplied(accent.r(), accent.g(), accent.b(), 40));
+    if is_hovered {
+        painter.circle_filled(center, size / 2.0, Color32::from_rgb(32, 35, 45));
     }
 
     if fav_style == "star" {
         // 5-Point Vector Star
-        let outer_r = size * 0.42;
+        let outer_r = size * 0.40;
         let inner_r = outer_r * 0.42;
         let mut points = Vec::with_capacity(10);
         for i in 0..10 {
@@ -205,29 +207,24 @@ pub fn favourite_button(ui: &mut Ui, is_fav: bool, fav_style: &str, accent: Colo
         if is_fav {
             painter.add(egui::Shape::convex_polygon(points, icon_color, Stroke::NONE));
         } else {
-            painter.add(egui::Shape::closed_line(points, Stroke::new(1.8, icon_color)));
+            painter.add(egui::Shape::closed_line(points, Stroke::new(1.6, icon_color)));
         }
     } else {
-        // Smooth continuous contour vector heart
-        let s = size * 0.38;
-        let tip = Pos2::new(center.x, center.y + s * 0.85);
-        let heart_points = vec![
-            tip,
-            Pos2::new(center.x - s * 0.50, center.y + s * 0.45),
-            Pos2::new(center.x - s * 0.90, center.y + s * 0.05),
-            Pos2::new(center.x - s * 0.85, center.y - s * 0.45),
-            Pos2::new(center.x - s * 0.40, center.y - s * 0.70),
-            Pos2::new(center.x, center.y - s * 0.35),
-            Pos2::new(center.x + s * 0.40, center.y - s * 0.70),
-            Pos2::new(center.x + s * 0.85, center.y - s * 0.45),
-            Pos2::new(center.x + s * 0.90, center.y + s * 0.05),
-            Pos2::new(center.x + s * 0.50, center.y + s * 0.45),
-        ];
+        // Mathematically flawless parametric cardioid heart (60 points)
+        let mut points = Vec::with_capacity(64);
+        let scale = size * 0.024;
+        for i in 0..60 {
+            let t = (i as f32) * std::f32::consts::TAU / 60.0;
+            let sin_t = t.sin();
+            let x = 16.0 * sin_t * sin_t * sin_t;
+            let y = -(13.0 * t.cos() - 5.0 * (2.0 * t).cos() - 2.0 * (3.0 * t).cos() - (4.0 * t).cos());
+            points.push(Pos2::new(center.x + x * scale, center.y + (y + 1.2) * scale));
+        }
 
         if is_fav {
-            painter.add(egui::Shape::convex_polygon(heart_points, icon_color, Stroke::NONE));
+            painter.add(egui::Shape::convex_polygon(points, icon_color, Stroke::NONE));
         } else {
-            painter.add(egui::Shape::closed_line(heart_points, Stroke::new(1.8, icon_color)));
+            painter.add(egui::Shape::closed_line(points, Stroke::new(1.6, icon_color)));
         }
     }
 
@@ -241,7 +238,7 @@ pub fn playback_mode_button(ui: &mut Ui, mode: &str, accent: Color32, size: f32)
     let painter = ui.painter();
 
     if is_hovered {
-        painter.circle_filled(center, size / 2.0, Color32::from_rgb(34, 37, 48));
+        painter.circle_filled(center, size / 2.0, Color32::from_rgb(32, 35, 45));
     }
 
     let is_active = mode != "normal";
@@ -250,10 +247,10 @@ pub fn playback_mode_button(ui: &mut Ui, mode: &str, accent: Color32, size: f32)
     } else if is_hovered {
         Color32::WHITE
     } else {
-        Color32::from_rgb(160, 166, 181)
+        Color32::from_rgb(150, 155, 170)
     };
 
-    let stroke = Stroke::new(1.8, icon_color);
+    let stroke = Stroke::new(1.6, icon_color);
 
     match mode {
         "shuffle" | "shuffle_repeat" => {
@@ -263,19 +260,20 @@ pub fn playback_mode_button(ui: &mut Ui, mode: &str, accent: Color32, size: f32)
             let b = center.y + 4.5;
 
             painter.line_segment([Pos2::new(l, t), Pos2::new(r, b)], stroke);
-            painter.line_segment([Pos2::new(r - 3.5, b), Pos2::new(r, b)], stroke);
-            painter.line_segment([Pos2::new(r, b - 3.5), Pos2::new(r, b)], stroke);
+            painter.line_segment([Pos2::new(r - 4.0, b), Pos2::new(r, b)], stroke);
+            painter.line_segment([Pos2::new(r, b - 4.0), Pos2::new(r, b)], stroke);
 
             painter.line_segment([Pos2::new(l, b), Pos2::new(r, t)], stroke);
-            painter.line_segment([Pos2::new(r - 3.5, t), Pos2::new(r, t)], stroke);
-            painter.line_segment([Pos2::new(r, t + 3.5), Pos2::new(r, t)], stroke);
+            painter.line_segment([Pos2::new(r - 4.0, t), Pos2::new(r, t)], stroke);
+            painter.line_segment([Pos2::new(r, t + 4.0), Pos2::new(r, t)], stroke);
         }
         "repeat" => {
             let w = 6.0;
             let h = 4.5;
             let rect_box = Rect::from_center_size(center, Vec2::new(w * 2.0, h * 2.0));
             painter.rect_stroke(rect_box, 3.0, stroke, egui::StrokeKind::Inside);
-            painter.line_segment([Pos2::new(center.x + w - 3.0, center.y - h - 3.0), Pos2::new(center.x + w + 1.0, center.y - h)], stroke);
+            painter.line_segment([Pos2::new(center.x + w - 3.0, center.y - h - 2.5), Pos2::new(center.x + w + 1.5, center.y - h)], stroke);
+            painter.line_segment([Pos2::new(center.x + w - 3.0, center.y - h + 2.5), Pos2::new(center.x + w + 1.5, center.y - h)], stroke);
         }
         "repeat_one" => {
             let w = 6.0;
@@ -286,30 +284,40 @@ pub fn playback_mode_button(ui: &mut Ui, mode: &str, accent: Color32, size: f32)
                 center,
                 egui::Align2::CENTER_CENTER,
                 "1",
-                egui::FontId::proportional(9.0),
+                egui::FontId::proportional(10.0),
                 icon_color,
             );
         }
         _ => {
             let y = center.y;
-            painter.line_segment([Pos2::new(center.x - 7.0, y), Pos2::new(center.x + 6.0, y)], stroke);
-            painter.line_segment([Pos2::new(center.x + 2.0, y - 4.0), Pos2::new(center.x + 6.0, y)], stroke);
-            painter.line_segment([Pos2::new(center.x + 2.0, y + 4.0), Pos2::new(center.x + 6.0, y)], stroke);
+            painter.line_segment([Pos2::new(center.x - 6.5, y), Pos2::new(center.x + 6.0, y)], stroke);
+            painter.line_segment([Pos2::new(center.x + 2.0, y - 3.5), Pos2::new(center.x + 6.0, y)], stroke);
+            painter.line_segment([Pos2::new(center.x + 2.0, y + 3.5), Pos2::new(center.x + 6.0, y)], stroke);
         }
     }
 
     response
 }
 
-pub fn header_pill_button(ui: &mut Ui, icon: &str, label: &str, fill: Color32, text_color: Color32) -> Response {
-    let font_id = egui::FontId::proportional(12.0);
+pub fn header_pill_button(ui: &mut Ui, symbol: &str, label: &str, is_accent: bool, accent: Color32) -> Response {
+    let (bg, text_color, stroke) = if is_accent {
+        (accent, Color32::WHITE, Stroke::NONE)
+    } else {
+        (
+            Color32::from_rgb(24, 26, 32),
+            Color32::from_rgb(220, 225, 235),
+            Stroke::new(1.0, Color32::from_rgb(45, 50, 65)),
+        )
+    };
+
     let btn = egui::Button::new(
-        egui::RichText::new(format!("{}  {}", icon, label))
-            .font(font_id)
+        egui::RichText::new(format!("{}  {}", symbol, label))
+            .size(11.5)
             .color(text_color)
             .strong()
     )
-    .fill(fill)
+    .fill(bg)
+    .stroke(stroke)
     .corner_radius(14.0)
     .min_size(Vec2::new(0.0, 28.0));
 
@@ -322,79 +330,93 @@ pub fn volume_speaker_icon(ui: &mut Ui, volume: u8, accent: Color32, size: f32) 
     let is_hovered = response.hovered();
     let painter = ui.painter();
 
-    let color = if is_hovered { Color32::WHITE } else { Color32::from_rgb(180, 185, 195) };
+    let color = if is_hovered { Color32::WHITE } else { Color32::from_rgb(160, 166, 180) };
 
-    // Speaker body (Left rectangle + middle cone)
-    let b_rect = Rect::from_min_max(
-        Pos2::new(center.x - 7.0, center.y - 3.5),
-        Pos2::new(center.x - 3.0, center.y + 3.5),
-    );
-    painter.rect_filled(b_rect, 1.0, color);
+    if is_hovered {
+        painter.circle_filled(center, size / 2.0, Color32::from_rgb(32, 35, 45));
+    }
 
+    // Minimalist Vector Speaker Horn
+    let hx = center.x - 3.0;
+    let hy = center.y;
+
+    // Body
+    let body_rect = Rect::from_min_max(Pos2::new(hx - 5.0, hy - 3.5), Pos2::new(hx - 2.0, hy + 3.5));
+    painter.rect_filled(body_rect, 1.0, color);
+
+    // Cone
     let cone = vec![
-        Pos2::new(center.x - 3.0, center.y - 3.5),
-        Pos2::new(center.x + 1.0, center.y - 7.0),
-        Pos2::new(center.x + 1.0, center.y + 7.0),
-        Pos2::new(center.x - 3.0, center.y + 3.5),
+        Pos2::new(hx - 2.0, hy - 3.5),
+        Pos2::new(hx + 2.5, hy - 7.0),
+        Pos2::new(hx + 2.5, hy + 7.0),
+        Pos2::new(hx - 2.0, hy + 3.5),
     ];
     painter.add(egui::Shape::convex_polygon(cone, color, Stroke::NONE));
 
-    // Sound waves or Mute slash
+    // Dynamic Sound Wave Arcs based on Volume level
+    let wave_stroke = Stroke::new(1.5, if volume > 0 { accent } else { Color32::from_rgb(90, 95, 110) });
     if volume == 0 {
-        // Red Mute Cross
-        let red = Color32::from_rgb(231, 76, 60);
-        painter.line_segment([Pos2::new(center.x + 3.0, center.y - 4.0), Pos2::new(center.x + 7.0, center.y + 4.0)], Stroke::new(1.8, red));
-        painter.line_segment([Pos2::new(center.x + 7.0, center.y - 4.0), Pos2::new(center.x + 3.0, center.y + 4.0)], Stroke::new(1.8, red));
+        // Muted 'X' mark
+        painter.line_segment([Pos2::new(hx + 4.5, hy - 3.5), Pos2::new(hx + 9.5, hy + 3.5)], Stroke::new(1.5, Color32::from_rgb(220, 80, 80)));
+        painter.line_segment([Pos2::new(hx + 4.5, hy + 3.5), Pos2::new(hx + 9.5, hy - 3.5)], Stroke::new(1.5, Color32::from_rgb(220, 80, 80)));
     } else {
-        let wave_stroke = Stroke::new(1.5, accent);
         // Wave 1
-        painter.line_segment([Pos2::new(center.x + 3.5, center.y - 3.0), Pos2::new(center.x + 5.0, center.y)], wave_stroke);
-        painter.line_segment([Pos2::new(center.x + 5.0, center.y), Pos2::new(center.x + 3.5, center.y + 3.0)], wave_stroke);
-
-        // Wave 2
-        if volume > 35 {
-            painter.line_segment([Pos2::new(center.x + 6.0, center.y - 5.5), Pos2::new(center.x + 8.0, center.y)], wave_stroke);
-            painter.line_segment([Pos2::new(center.x + 8.0, center.y), Pos2::new(center.x + 6.0, center.y + 5.5)], wave_stroke);
+        painter.line_segment([Pos2::new(hx + 4.5, hy - 3.5), Pos2::new(hx + 6.0, hy)], wave_stroke);
+        painter.line_segment([Pos2::new(hx + 6.0, hy), Pos2::new(hx + 4.5, hy + 3.5)], wave_stroke);
+        if volume > 40 {
+            // Wave 2
+            painter.line_segment([Pos2::new(hx + 7.5, hy - 6.0), Pos2::new(hx + 9.5, hy)], wave_stroke);
+            painter.line_segment([Pos2::new(hx + 9.5, hy), Pos2::new(hx + 7.5, hy + 6.0)], wave_stroke);
         }
     }
 
     response
 }
 
-pub fn dsp_pill_button(ui: &mut Ui, label: &str, active: bool, accent: Color32, width: f32, height: f32) -> Response {
+pub fn dsp_pill_button(
+    ui: &mut Ui,
+    label: &str,
+    is_active: bool,
+    accent: Color32,
+    width: f32,
+    height: f32,
+) -> Response {
     let (rect, response) = ui.allocate_exact_size(Vec2::new(width, height), Sense::click());
     let is_hovered = response.hovered();
-    let r = height / 2.0;
+    let is_down = response.is_pointer_button_down_on();
     let painter = ui.painter();
 
-    if active {
-        // Glowing Illuminated Accent Pill
-        painter.rect_filled(rect, r, accent);
-        if is_hovered {
-            painter.rect_stroke(rect, r, Stroke::new(1.5, Color32::WHITE), egui::StrokeKind::Inside);
-        }
-        painter.text(
-            rect.center(),
-            egui::Align2::CENTER_CENTER,
-            label,
-            egui::FontId::proportional(10.5),
+    let (bg, border_color, text_color) = if is_active {
+        (
+            accent,
+            accent,
             Color32::WHITE,
-        );
+        )
+    } else if is_hovered {
+        (
+            Color32::from_rgb(32, 35, 45),
+            Color32::from_rgb(60, 66, 85),
+            Color32::from_rgb(220, 225, 235),
+        )
     } else {
-        // Sleek Dark Matte Card
-        let bg = if is_hovered { Color32::from_rgb(34, 37, 48) } else { Color32::from_rgb(26, 28, 35) };
-        let border = if is_hovered { Color32::from_rgb(50, 55, 71) } else { Color32::from_rgb(36, 39, 51) };
-        let text_c = if is_hovered { Color32::WHITE } else { Color32::from_rgb(160, 166, 181) };
-        painter.rect_filled(rect, r, bg);
-        painter.rect_stroke(rect, r, Stroke::new(1.0, border), egui::StrokeKind::Inside);
-        painter.text(
-            rect.center(),
-            egui::Align2::CENTER_CENTER,
-            label,
-            egui::FontId::proportional(10.5),
-            text_c,
-        );
-    }
+        (
+            Color32::from_rgb(20, 22, 28),
+            Color32::from_rgb(38, 42, 54),
+            Color32::from_rgb(140, 145, 160),
+        )
+    };
+
+    let r = 5.0 - if is_down { 0.5 } else { 0.0 };
+    painter.rect_filled(rect, r, bg);
+    painter.rect_stroke(rect, r, Stroke::new(1.0, border_color), egui::StrokeKind::Inside);
+
+    painter.text(
+        rect.center(),
+        egui::Align2::CENTER_CENTER,
+        label,
+        egui::FontId::proportional(10.5),
+        text_color,
+    );
 
     response
 }
