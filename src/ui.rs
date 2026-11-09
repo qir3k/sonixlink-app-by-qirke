@@ -43,6 +43,13 @@ pub struct SonixApp {
     pub sync_db_rx: Receiver<bool>,
     pub sync_db_tx: Sender<bool>,
 
+    pub update_info: Option<crate::updater::ReleaseInfo>,
+    pub is_checking_update: bool,
+    pub is_downloading_update: bool,
+    pub update_status_msg: Option<String>,
+    pub update_rx: Receiver<Result<crate::updater::ReleaseInfo, String>>,
+    pub update_tx: Sender<Result<crate::updater::ReleaseInfo, String>>,
+
     pub last_poll: Instant,
     pub state_rx: Receiver<PlayerState>,
     pub state_tx: Sender<PlayerState>,
@@ -70,6 +77,7 @@ impl SonixApp {
         let (state_tx, state_rx) = channel();
         let (art_tx, art_rx) = channel();
         let (sync_db_tx, sync_db_rx) = channel();
+        let (update_tx, update_rx) = channel();
 
         // Background poller thread
         let client_clone = client.clone();
@@ -109,6 +117,13 @@ impl SonixApp {
             sync_db_rx,
             sync_db_tx,
 
+            update_info: None,
+            is_checking_update: false,
+            is_downloading_update: false,
+            update_status_msg: None,
+            update_rx,
+            update_tx,
+
             last_poll: Instant::now(),
             state_rx,
             state_tx,
@@ -123,7 +138,32 @@ impl SonixApp {
         if app.tracks.is_empty() {
             app.trigger_sync_db();
         }
+        app.trigger_check_update();
         app
+    }
+
+    pub fn trigger_check_update(&mut self) {
+        if self.is_checking_update || self.is_downloading_update {
+            return;
+        }
+        self.is_checking_update = true;
+        self.update_status_msg = Some("Checking for updates...".to_string());
+        let tx = self.update_tx.clone();
+        std::thread::spawn(move || {
+            let res = crate::updater::check_for_updates();
+            let _ = tx.send(res);
+        });
+    }
+
+    pub fn trigger_install_update(&mut self, url: String) {
+        if self.is_downloading_update {
+            return;
+        }
+        self.is_downloading_update = true;
+        self.update_status_msg = Some("Downloading update and restarting...".to_string());
+        std::thread::spawn(move || {
+            let _ = crate::updater::download_and_install_update(&url);
+        });
     }
 
     pub fn trigger_sync_db(&mut self) {
@@ -221,6 +261,24 @@ impl eframe::App for SonixApp {
             if success {
                 self.db = LibraryDb::new();
                 self.load_view_data();
+            }
+        }
+
+        // Process update check completion
+        while let Ok(res) = self.update_rx.try_recv() {
+            self.is_checking_update = false;
+            match res {
+                Ok(info) => {
+                    if info.is_newer {
+                        self.update_status_msg = Some(format!("SonixLink {} is available", info.tag));
+                        self.update_info = Some(info);
+                    } else {
+                        self.update_status_msg = Some(format!("You have the latest version (v{})", crate::updater::current_version()));
+                    }
+                }
+                Err(e) => {
+                    self.update_status_msg = Some(format!("Update check failed: {}", e));
+                }
             }
         }
 
@@ -468,6 +526,46 @@ impl SonixApp {
                 }
             });
         });
+
+        // Optional Update Notification Banner
+        let update_opt = self.update_info.clone();
+        if let Some(update) = update_opt {
+            let mut dismiss_clicked = false;
+            let mut install_url = None;
+            let is_updating = self.is_downloading_update;
+
+            ui.add_space(8.0);
+            Frame::new()
+                .fill(BG_CARD)
+                .stroke(Stroke::new(1.0, accent))
+                .corner_radius(6.0)
+                .inner_margin(Vec2::new(12.0, 7.0))
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new(format!("SonixLink {} is available", update.tag)).color(TEXT_PRIMARY).size(11.5).strong());
+                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            ui.spacing_mut().item_spacing = Vec2::new(6.0, 0.0);
+                            if ui.add(egui::Button::new("Dismiss").corner_radius(4.0)).clicked() {
+                                dismiss_clicked = true;
+                            }
+                            if is_updating {
+                                ui.label(egui::RichText::new("Updating...").color(accent).size(11.0));
+                            } else {
+                                if ui.add(egui::Button::new("Update Now").fill(accent).corner_radius(4.0)).clicked() {
+                                    install_url = Some(update.exe_url.clone());
+                                }
+                            }
+                        });
+                    });
+                });
+
+            if dismiss_clicked {
+                self.update_info = None;
+            }
+            if let Some(url) = install_url {
+                self.trigger_install_update(url);
+            }
+        }
 
         // 2. Minimalist Search Field
         ui.add_space(8.0);
@@ -920,6 +1018,51 @@ impl SonixApp {
                         }
                     });
                 });
+
+                ui.add_space(8.0);
+
+                // Application Updates
+                let mut do_check = false;
+                let mut to_install = None;
+                let update_opt = self.update_info.clone();
+                let is_checking = self.is_checking_update;
+                let is_downloading = self.is_downloading_update;
+
+                Frame::new().fill(BG_CARD).stroke(Stroke::new(1.0, BORDER)).corner_radius(6.0).inner_margin(12.0).show(ui, |ui| {
+                    ui.label(egui::RichText::new("Application Updates").size(12.0).strong().color(TEXT_PRIMARY));
+                    ui.add_space(4.0);
+                    ui.label(egui::RichText::new(format!("Current version: v{} (Windows x64)", crate::updater::current_version())).size(10.5).color(TEXT_SECONDARY));
+
+                    if let Some(ref msg) = self.update_status_msg {
+                        ui.add_space(2.0);
+                        ui.label(egui::RichText::new(msg).size(10.5).color(accent));
+                    }
+
+                    ui.add_space(6.0);
+                    ui.horizontal(|ui| {
+                        let check_lbl = if is_checking { "Checking..." } else { "Check for Updates" };
+                        if ui.add(egui::Button::new(check_lbl).corner_radius(4.0)).clicked() {
+                            do_check = true;
+                        }
+
+                        if let Some(ref update) = update_opt {
+                            if is_downloading {
+                                ui.label(egui::RichText::new("Updating...").color(accent).size(11.0));
+                            } else {
+                                if ui.add(egui::Button::new(format!("Install {}", update.tag)).fill(accent).corner_radius(4.0)).clicked() {
+                                    to_install = Some(update.exe_url.clone());
+                                }
+                            }
+                        }
+                    });
+                });
+
+                if do_check {
+                    self.trigger_check_update();
+                }
+                if let Some(url) = to_install {
+                    self.trigger_install_update(url);
+                }
 
                 ui.add_space(10.0);
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {

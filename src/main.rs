@@ -7,6 +7,7 @@ mod db;
 mod settings;
 mod theme;
 mod ui;
+mod updater;
 
 use eframe::egui::{self, IconData};
 use ui::SonixApp;
