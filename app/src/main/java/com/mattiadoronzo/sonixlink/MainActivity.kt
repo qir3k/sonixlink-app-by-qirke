@@ -678,8 +678,6 @@ class MainActivity : AppCompatActivity() {
         ) {
             return
         }
-        if (Settings.askedNotifications(this)) return
-        Settings.rememberAskedNotifications(this)
         notificationPermission.launch(permission)
     }
 

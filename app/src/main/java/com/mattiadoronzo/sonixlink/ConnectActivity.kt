@@ -47,8 +47,11 @@ class ConnectActivity : AppCompatActivity() {
         views.foundList.adapter = adapter
         views.rescanButton.setOnClickListener { restartDiscovery() }
         views.bluetoothButton.setOnClickListener { pickBluetooth() }
+        views.actionUpdates.setOnClickListener { AppUpdater.checkForUpdates(this) }
+        views.checkUpdatesButton.setOnClickListener { AppUpdater.checkForUpdates(this) }
 
         discovery = Discovery(this)
+        askForNotifications()
 
         // A crash trace from the previous run is shown before reconnecting, so
         // it can be read before the same crash happens again.
@@ -63,6 +66,7 @@ class ConnectActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+        AppUpdater.resumeDownload(this)
         restartDiscovery()
     }
 
@@ -161,6 +165,21 @@ class ConnectActivity : AppCompatActivity() {
     // -----------------------------------------------------------------------
     // Bluetooth
     // -----------------------------------------------------------------------
+
+    private val notificationPermission = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { }
+
+    private fun askForNotifications() {
+        if (android.os.Build.VERSION.SDK_INT < 33) return
+        val permission = android.Manifest.permission.POST_NOTIFICATIONS
+        if (androidx.core.content.ContextCompat.checkSelfPermission(this, permission) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        notificationPermission.launch(permission)
+    }
 
     /** Asked for on Android 12 and up, before the paired devices can be read. */
     private val bluetoothPermission = registerForActivityResult(

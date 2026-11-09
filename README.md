@@ -51,7 +51,7 @@ player's own sort order and favourite handling, and the crash log.
 - **A media notification** with the track playing on the player, its artwork, previous/play-pause/next and the position bar, also on the lock screen, so the app does not need to be opened to change track.
 - **Over Wi-Fi or Bluetooth.** A player paired with the phone can be reached without a shared Wi-Fi network.
 - **Now-playing screen** with the cover sent by the player and a blurred version of the same image behind it.
-- **The phone's volume keys can change the device volume**, with the app open and, through the media notification, from the lock screen, in the player's own step. The app can use the player-selected step or a 1–5% step; it retains a newly requested step while waiting for the player's next state update.
+- **The phone's volume keys can change the device volume**, with the app open, from the lock screen, and system-wide even when the phone screen is off or from a connected smartwatch. The app uses the player's volume step (1–5%) and keeps volume controls responsive across screen states.
 - **The accent color follows the player** by default; change it there and every screen of the app changes with it, at once. Prefer a fixed color? Pick one in the menu and the app stops following the player.
 
 ### The settings menu
@@ -279,10 +279,11 @@ From the command line, with JDK 17 and the Android SDK installed:
 
 The release workflow publishes a tagged APK and its SHA-256 checksum on every
 push to `main`; the test workflow builds the debug APK on `dev` and on pull
-requests. The app can check the latest published release from the three-dot
-menu. Android does not allow an ordinary app to silently replace itself: after
-the download, tap the notification and approve the install in Android's package
-installer. If Android asks, allow SonixLink to install unknown apps.
+requests. The app can check the latest published release directly from the
+connection screen (before connecting) as well as from the three-dot menu. Android
+does not allow an ordinary app to silently replace itself: after the download,
+tap the notification and approve the install in Android's package installer. If
+Android asks, allow SonixLink to install unknown apps.
 
 ### Signing releases
 

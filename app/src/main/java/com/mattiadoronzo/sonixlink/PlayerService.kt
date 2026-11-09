@@ -10,6 +10,10 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
@@ -20,7 +24,11 @@ import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.media.AudioAttributesCompat
+import androidx.media.AudioFocusRequestCompat
+import androidx.media.AudioManagerCompat
 import androidx.media.VolumeProviderCompat
+import androidx.media.session.MediaButtonReceiver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -75,7 +83,7 @@ class PlayerService : Service() {
          * Consecutive failed reads before the player is taken to be gone and
          * the service stops, and the retry interval in between.
          */
-        private const val GIVE_UP_AFTER = 3
+        private const val GIVE_UP_AFTER = 30
         private const val RETRY_MS = 2000L
 
         /**
@@ -132,6 +140,10 @@ class PlayerService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
 
+    private var silentTrack: AudioTrack? = null
+    private var audioFocusRequest: AudioFocusRequestCompat? = null
+    private var hasAudioFocus = false
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -146,12 +158,27 @@ class PlayerService : Service() {
 
             override fun onAdjustVolume(direction: Int) {
                 if (direction != 0) {
-                    setVolume(currentVolume + direction * Settings.volumeStep(this@PlayerService))
+                    val step = Settings.volumeStep(this@PlayerService)
+                    val delta = if (direction > 0) step else -step
+                    setVolume(currentVolume + delta)
                 }
             }
         }
 
         session = MediaSessionCompat(this, "SonixLink").apply {
+            setFlags(
+                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
+                    MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS,
+            )
+            val mediaButtonIntent = Intent(Intent.ACTION_MEDIA_BUTTON, null, this@PlayerService, MediaButtonReceiver::class.java)
+            val mediaButtonPendingIntent = PendingIntent.getBroadcast(
+                this@PlayerService,
+                0,
+                mediaButtonIntent,
+                PendingIntent.FLAG_IMMUTABLE,
+            )
+            setMediaButtonReceiver(mediaButtonPendingIntent)
+
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() = send { it.play() }
                 override fun onPause() = send { it.pause() }
@@ -168,6 +195,7 @@ class PlayerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        MediaButtonReceiver.handleIntent(session, intent)
         when (intent?.action) {
             ACTION_STOP -> {
                 disconnect()
@@ -177,9 +205,6 @@ class PlayerService : Service() {
             ACTION_TOGGLE -> send { it.toggle() }
             ACTION_NEXT -> send { it.next() }
             else -> {
-                // Only this path comes through startForegroundService, which
-                // requires startForeground within seconds; the actions arrive
-                // through plain startService.
                 goForeground()
                 val host = intent?.getStringExtra(EXTRA_HOST).orEmpty()
                 if (host.isNotEmpty()) {
@@ -188,9 +213,15 @@ class PlayerService : Service() {
                     val current = client
                     if (current == null || current.host != host || current.port != port) {
                         client = PlayerClient(host, port)
-                        state = PlayerState.EMPTY
+                        state = if (Session.state !== PlayerState.EMPTY) Session.state else PlayerState.EMPTY
+                        if (state.volume in 0..100) {
+                            volume.currentVolume = state.volume
+                        }
                         artPath = null
                         art = null
+                        if (state !== PlayerState.EMPTY) {
+                            show(state)
+                        }
                         startPolling()
                     }
                 } else if (client == null) {
@@ -208,6 +239,13 @@ class PlayerService : Service() {
         poller?.cancel()
         scope.cancel()
         releaseLocks()
+        updateAudioState(false)
+        try {
+            silentTrack?.stop()
+            silentTrack?.release()
+        } catch (e: Exception) {
+        }
+        silentTrack = null
         session.setActive(false)
         session.release()
         super.onDestroy()
@@ -335,6 +373,7 @@ class PlayerService : Service() {
             volume.currentVolume = state.volume.coerceIn(0, 100)
         }
 
+        updateAudioState(state.isPlaying)
         if (state.isPlaying) holdLocks() else releaseLocks()
         notifyNow()
     }
@@ -407,11 +446,12 @@ class PlayerService : Service() {
         val channel = NotificationChannel(
             CHANNEL,
             getString(R.string.notification_channel),
-            // Low importance: updates make no sound.
-            NotificationManager.IMPORTANCE_LOW,
+            NotificationManager.IMPORTANCE_DEFAULT,
         ).apply {
             description = getString(R.string.notification_channel_description)
             setShowBadge(false)
+            setSound(null, null)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
     }
@@ -435,6 +475,7 @@ class PlayerService : Service() {
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
             .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
             .setColor(Session.accent)
@@ -502,6 +543,110 @@ class PlayerService : Service() {
             launch,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+    }
+
+    // --- Audio routing & Locks ---
+
+    private fun ensureSilentTrack(): AudioTrack? {
+        if (silentTrack != null) return silentTrack
+        return try {
+            val sampleRate = 44100
+            val minBufSize = AudioTrack.getMinBufferSize(
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+            ).coerceAtLeast(4096)
+            val buffer = ByteArray(minBufSize)
+            val track = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build()
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(buffer.size)
+                    .setTransferMode(AudioTrack.MODE_STATIC)
+                    .build()
+            } else {
+                @Suppress("DEPRECATION")
+                AudioTrack(
+                    AudioManager.STREAM_MUSIC,
+                    sampleRate,
+                    AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                    buffer.size,
+                    AudioTrack.MODE_STATIC,
+                )
+            }
+            track.write(buffer, 0, buffer.size)
+            track.setLoopPoints(0, buffer.size / 2, -1)
+            silentTrack = track
+            track
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun requestAudioFocus() {
+        if (hasAudioFocus) return
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        if (audioFocusRequest == null) {
+            audioFocusRequest = AudioFocusRequestCompat.Builder(AudioManagerCompat.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(
+                    AudioAttributesCompat.Builder()
+                        .setUsage(AudioAttributesCompat.USAGE_MEDIA)
+                        .setContentType(AudioAttributesCompat.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                .setOnAudioFocusChangeListener { focusChange ->
+                    if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
+                        hasAudioFocus = false
+                    }
+                }
+                .build()
+        }
+        val res = AudioManagerCompat.requestAudioFocus(audioManager, audioFocusRequest!!)
+        hasAudioFocus = (res == AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+    }
+
+    private fun abandonAudioFocus() {
+        if (!hasAudioFocus) return
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        audioFocusRequest?.let {
+            AudioManagerCompat.abandonAudioFocusRequest(audioManager, it)
+        }
+        hasAudioFocus = false
+    }
+
+    private fun updateAudioState(isPlaying: Boolean) {
+        if (isPlaying) {
+            requestAudioFocus()
+            try {
+                val track = ensureSilentTrack()
+                if (track != null && track.playState != AudioTrack.PLAYSTATE_PLAYING) {
+                    track.play()
+                }
+            } catch (e: Exception) {
+            }
+        } else {
+            try {
+                silentTrack?.let {
+                    if (it.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                        it.pause()
+                    }
+                }
+            } catch (e: Exception) {
+            }
+            abandonAudioFocus()
+        }
     }
 
     // --- Locks ---

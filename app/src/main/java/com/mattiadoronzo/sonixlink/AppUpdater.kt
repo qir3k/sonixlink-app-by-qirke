@@ -14,6 +14,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -60,7 +61,7 @@ internal object AppUpdater {
     private var progressLabel: TextView? = null
     private var progressBar: ProgressBar? = null
 
-    fun checkForUpdates(activity: MainActivity) {
+    fun checkForUpdates(activity: AppCompatActivity) {
         val progress = MaterialAlertDialogBuilder(activity)
             .setMessage(R.string.update_checking)
             .setCancelable(false)
@@ -158,7 +159,7 @@ internal object AppUpdater {
         return 0
     }
 
-    private fun enqueueDownload(context: MainActivity, release: AppRelease) {
+    private fun enqueueDownload(context: AppCompatActivity, release: AppRelease) {
         try {
             val manager = context.getSystemService(DownloadManager::class.java)
             val request = DownloadManager.Request(Uri.parse(release.apkUrl))
@@ -183,7 +184,7 @@ internal object AppUpdater {
         }
     }
 
-    fun resumeDownload(activity: MainActivity) {
+    fun resumeDownload(activity: AppCompatActivity) {
         if (activity.isFinishing || activity.isDestroyed) return
         val preferences = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val id = preferences.getLong(DOWNLOAD_ID, -1L)
@@ -197,7 +198,7 @@ internal object AppUpdater {
         monitorDownload(activity, id)
     }
 
-    private fun monitorDownload(activity: MainActivity, id: Long) {
+    private fun monitorDownload(activity: AppCompatActivity, id: Long) {
         val generation = ++monitorGeneration
         monitorJob?.cancel()
         progressDialog?.dismiss()
@@ -296,7 +297,7 @@ internal object AppUpdater {
         }
     }
 
-    private fun updateProgress(activity: MainActivity, state: DownloadState) {
+    private fun updateProgress(activity: AppCompatActivity, state: DownloadState) {
         val label = progressLabel ?: return
         val bar = progressBar ?: return
         if (state.total > 0) {
@@ -319,7 +320,7 @@ internal object AppUpdater {
         }
     }
 
-    private fun showInstallReady(activity: MainActivity, id: Long) {
+    private fun showInstallReady(activity: AppCompatActivity, id: Long) {
         if (!isForeground(activity)) return
         MaterialAlertDialogBuilder(activity)
             .setTitle(R.string.update_ready_title)
@@ -389,7 +390,7 @@ internal object AppUpdater {
     }
 
     private fun showMessage(context: Context, title: Int, message: String) {
-        if (context !is MainActivity || !isForeground(context)) return
+        if (context !is AppCompatActivity || !isForeground(context)) return
         MaterialAlertDialogBuilder(context)
             .setTitle(title)
             .setMessage(message)
@@ -397,7 +398,7 @@ internal object AppUpdater {
             .show()
     }
 
-    private fun isForeground(activity: MainActivity): Boolean =
+    private fun isForeground(activity: AppCompatActivity): Boolean =
         !activity.isFinishing && !activity.isDestroyed &&
             activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
 
