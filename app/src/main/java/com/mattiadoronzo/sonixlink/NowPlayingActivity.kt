@@ -244,6 +244,9 @@ class NowPlayingActivity : AppCompatActivity() {
         views.progressSeek.thumbOffset = dp(9)
         showMode(Session.heldMode.resolve(Session.state.mode))
         showFavourite(shownFavourite(Session.state))
+        if (Session.state.podcast) {
+            views.speedButton.setTextColor(Accent.onOff(this, Session.state.podcastSpeed != 1000))
+        }
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -387,7 +390,7 @@ class NowPlayingActivity : AppCompatActivity() {
 
         views.playButton.setImageResource(if (state.isPlaying) R.drawable.ic_pause else R.drawable.ic_play)
         showMode(Session.heldMode.resolve(state.mode))
-        views.modeButton.visibility = if (state.podcast) View.INVISIBLE else View.VISIBLE
+        views.modeButton.visibility = if (state.podcast) View.GONE else View.VISIBLE
         showFavourite(shownFavourite(state))
 
         showProgress()
@@ -425,12 +428,14 @@ class NowPlayingActivity : AppCompatActivity() {
      */
     private fun showSpeed(state: PlayerState) {
         views.speedButton.visibility = if (state.podcast) View.VISIBLE else View.GONE
+        views.modeButton.visibility = if (state.podcast) View.GONE else View.VISIBLE
         if (!state.podcast) return
         val known = speedChoices.firstOrNull { it.first == state.podcastSpeed }
         setText(
             views.speedButton,
             known?.second ?: String.format(java.util.Locale.US, "%.2fx", state.podcastSpeed / 1000.0),
         )
+        views.speedButton.setTextColor(Accent.onOff(this, state.podcastSpeed != 1000))
     }
 
     /**
@@ -449,6 +454,7 @@ class NowPlayingActivity : AppCompatActivity() {
                 // Shown at once: the poll that confirms it is up to a second
                 // away, and the rate is heard before it is read back.
                 setText(views.speedButton, speedChoices[which].second)
+                views.speedButton.setTextColor(Accent.onOff(this@NowPlayingActivity, permille != 1000))
                 send { it.setSpeed(permille) }
             }
             .show()

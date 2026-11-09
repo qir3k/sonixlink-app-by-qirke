@@ -174,16 +174,36 @@
             android:orientation="horizontal"
             android:gravity="center"
             android:layout_marginTop="12dp"
-            android:paddingBottom="24dp">
+            android:paddingBottom="32dp">
 
-            <ImageButton
-                android:id="@+id/modeButton"
-                android:background="?attr/selectableItemBackgroundBorderless"
+            <FrameLayout
                 android:layout_width="52dp"
-                android:layout_height="52dp"
-                android:src="@drawable/ic_repeat_off"
-                android:contentDescription="@string/cd_mode"
-                android:tint="@color/text_secondary" />
+                android:layout_height="52dp">
+
+                <ImageButton
+                    android:id="@+id/modeButton"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/ic_repeat_off"
+                    android:contentDescription="@string/cd_mode"
+                    android:tint="@color/text_secondary" />
+
+                <!-- The episode speed: stands in the repeat button's place during a podcast,
+                     matching the player's own arrangement. -->
+                <TextView
+                    android:id="@+id/speedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/speed_title"
+                    android:text="@string/speed_button"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+            </FrameLayout>
 
             <ImageButton
                 android:id="@+id/prevButton"
@@ -224,23 +244,7 @@
                 android:tint="@color/text_secondary" />
         </LinearLayout>
 
-        <!-- The episode speed: the player's own setting, shown only while a
-             podcast episode is playing, which is the only thing it changes. -->
-        <TextView
-            android:id="@+id/speedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="20dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:paddingStart="14dp"
-            android:paddingTop="6dp"
-            android:paddingEnd="14dp"
-            android:paddingBottom="6dp"
-            android:text="@string/speed_button"
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp"
-            android:visibility="gone" />
+
     </LinearLayout>
     </FrameLayout>
 
