@@ -1,11 +1,10 @@
-use crate::client::{PlayerState, SonixClient, StreamList, StreamRow, StreamService};
+use crate::client::{PlayerState, SonixClient, StreamList, StreamService};
 use crate::custom_widgets::*;
 use crate::db::{LibraryDb, SimpleItem, TrackItem};
 use crate::settings::AppSettings;
 use crate::theme::*;
-use eframe::egui::{self, Align, Color32, Frame, Layout, Pos2, Rect, ScrollArea, Stroke, TextureHandle, Ui, Vec2};
+use eframe::egui::{self, Align, Color32, Frame, Layout, ScrollArea, Stroke, TextureHandle, Ui, Vec2};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 #[derive(Clone)]
@@ -225,19 +224,28 @@ impl eframe::App for SonixApp {
 
         let accent = self.effective_accent_color();
 
-        // Top-level 3-panel layout
-        Frame::new().fill(BG_BASE).show(ui, |ui| {
-            ui.horizontal(|ui| {
-                // LEFT SIDEBAR (Width: 230)
+        // 3. Robust Three-Panel Layout (Left Sidebar, Right Player, Center Library)
+        egui::Panel::left("left_sidebar")
+            .exact_size(230.0)
+            .resizable(false)
+            .frame(Frame::new().fill(BG_PANEL).inner_margin(12.0))
+            .show(ui, |ui| {
                 self.render_left_sidebar(ui, accent);
+            });
 
-                // CENTER MAIN VIEW (Flexible)
-                self.render_center_panel(ui, accent);
-
-                // RIGHT NOW-PLAYING PANEL (Width: 270)
+        egui::Panel::right("right_panel")
+            .exact_size(280.0)
+            .resizable(false)
+            .frame(Frame::new().fill(BG_PANEL).inner_margin(14.0))
+            .show(ui, |ui| {
                 self.render_right_panel(ui, accent);
             });
-        });
+
+        egui::CentralPanel::default()
+            .frame(Frame::new().fill(BG_BASE).inner_margin(Vec2::new(16.0, 14.0)))
+            .show(ui, |ui| {
+                self.render_center_panel(ui, accent);
+            });
 
         // Modals
         if self.show_settings {
@@ -260,69 +268,68 @@ impl SonixApp {
     // LEFT SIDEBAR
     // -------------------------------------------------------------------------
     fn render_left_sidebar(&mut self, ui: &mut Ui, accent: Color32) {
-        Frame::new()
-            .fill(BG_PANEL)
-            .inner_margin(12.0)
-            .show(ui, |ui| {
-                ui.set_width(225.0);
-                ui.set_min_height(ui.available_height());
+        // 1. App Brand Header
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("⚡").color(accent).size(22.0).strong());
+            ui.vertical(|ui| {
+                ui.label(egui::RichText::new("SonixLink").color(TEXT_PRIMARY).size(16.0).strong());
+                let dev_badge = egui::RichText::new("TempoTec Variations V1").color(accent).size(9.5).strong();
+                ui.label(dev_badge);
+            });
+        });
 
-                // 1. App Brand Header
+        ui.add_space(10.0);
+
+        // 2. Connection Card
+        Frame::new()
+            .fill(BG_CARD)
+            .stroke(Stroke::new(1.0, BORDER))
+            .corner_radius(8.0)
+            .inner_margin(10.0)
+            .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    // Modern App Glyphs / Badge
-                    ui.label(egui::RichText::new("⚡").color(accent).size(22.0).strong());
-                    ui.vertical(|ui| {
-                        ui.label(egui::RichText::new("SonixLink").color(TEXT_PRIMARY).size(16.0).strong());
-                        let dev_badge = egui::RichText::new("TempoTec Variations V1").color(accent).size(9.5).strong();
-                        ui.label(dev_badge);
-                    });
+                    let (dot_color, dev_name) = if self.current_state.is_some() {
+                        (STATUS_GREEN, "TempoTec V1")
+                    } else {
+                        (STATUS_RED, "Disconnected")
+                    };
+                    ui.label(egui::RichText::new("●").color(dot_color).size(11.0));
+                    ui.label(egui::RichText::new(dev_name).color(TEXT_PRIMARY).size(11.0).strong());
+
+                    if let Some(ref s) = self.current_state {
+                        if s.battery >= 0 {
+                            let bolt = if s.charging { "⚡ " } else { "🔋 " };
+                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                ui.label(egui::RichText::new(format!("{}{}%", bolt, s.battery)).color(TEXT_SECONDARY).size(10.0).strong());
+                            });
+                        }
+                    }
                 });
 
-                ui.add_space(10.0);
+                ui.label(egui::RichText::new(format!("{}:{}", self.client.host, self.client.port)).color(TEXT_MUTED).size(9.5));
 
-                // 2. Connection Card
-                Frame::new()
-                    .fill(BG_CARD)
-                    .stroke(Stroke::new(1.0, BORDER))
-                    .corner_radius(8.0)
-                    .inner_margin(10.0)
-                    .show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            let (dot_color, dev_name) = if self.current_state.is_some() {
-                                (STATUS_GREEN, "TempoTec V1")
-                            } else {
-                                (STATUS_RED, "Disconnected")
-                            };
-                            ui.label(egui::RichText::new("●").color(dot_color).size(11.0));
-                            ui.label(egui::RichText::new(dev_name).color(TEXT_PRIMARY).size(11.0).strong());
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui.add(egui::Button::new("🔍 Devices").corner_radius(4.0)).clicked() {
+                        self.show_devices = true;
+                    }
+                    if ui.add(egui::Button::new("↻ Sync DB").corner_radius(4.0)).clicked() {
+                        self.tracks = self.db.get_all_tracks();
+                    }
+                });
+            });
 
-                            if let Some(ref s) = self.current_state {
-                                if s.battery >= 0 {
-                                    let bolt = if s.charging { "⚡ " } else { "🔋 " };
-                                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                        ui.label(egui::RichText::new(format!("{}{}%", bolt, s.battery)).color(TEXT_SECONDARY).size(10.0).strong());
-                                    });
-                                }
-                            }
-                        });
+        ui.add_space(10.0);
 
-                        ui.label(egui::RichText::new(format!("{}:{}", self.client.host, self.client.port)).color(TEXT_MUTED).size(9.5));
+        // 3. Navigation Links in scrollable area
+        let bottom_height = 80.0;
+        let nav_height = (ui.available_height() - bottom_height).max(100.0);
 
-                        ui.add_space(6.0);
-                        ui.horizontal(|ui| {
-                            if ui.add(egui::Button::new("🔍 Devices").corner_radius(4.0)).clicked() {
-                                self.show_devices = true;
-                            }
-                            if ui.add(egui::Button::new("↻ Sync DB").corner_radius(4.0)).clicked() {
-                                self.tracks = self.db.get_all_tracks();
-                            }
-                        });
-                    });
-
-                ui.add_space(10.0);
-
-                // 3. Navigation Links
-                ScrollArea::vertical().show(ui, |ui| {
+        ui.allocate_ui_with_layout(
+            Vec2::new(ui.available_width(), nav_height),
+            Layout::top_down(Align::Min),
+            |ui| {
+                ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                     ui.label(egui::RichText::new("LIBRARY").color(TEXT_MUTED).size(9.0).strong());
                     self.nav_button(ui, "tracks", "🎵  All Tracks", accent);
                     self.nav_button(ui, "albums", "💿  Albums", accent);
@@ -339,126 +346,129 @@ impl SonixApp {
                     ui.label(egui::RichText::new("ONLINE").color(TEXT_MUTED).size(9.0).strong());
                     self.nav_button(ui, "streaming", "🌐  Streaming", accent);
                 });
+            },
+        );
 
-                // 4. Bottom Settings & DSP Buttons
-                ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
-                    if ui.add(egui::Button::new(egui::RichText::new("🎛️  Audio & DSP Settings  ›").size(11.0).strong()).min_size(Vec2::new(ui.available_width(), 32.0)).corner_radius(6.0)).clicked() {
-                        self.show_dsp = true;
-                    }
-                    ui.add_space(4.0);
-                    if ui.add(egui::Button::new(egui::RichText::new("⚙️  Settings  ›").size(11.0).strong()).min_size(Vec2::new(ui.available_width(), 32.0)).corner_radius(6.0)).clicked() {
-                        self.show_settings = true;
-                    }
-                });
-            });
+        ui.add_space(8.0);
+
+        // 4. Bottom Settings & DSP Buttons
+        if ui.add(egui::Button::new(egui::RichText::new("⚙️  Settings  ›").size(11.0).strong()).min_size(Vec2::new(ui.available_width(), 30.0)).corner_radius(6.0)).clicked() {
+            self.show_settings = true;
+        }
+        ui.add_space(4.0);
+        if ui.add(egui::Button::new(egui::RichText::new("🎛️  Audio & DSP Settings  ›").size(11.0).strong()).min_size(Vec2::new(ui.available_width(), 30.0)).corner_radius(6.0)).clicked() {
+            self.show_dsp = true;
+        }
     }
 
     fn nav_button(&mut self, ui: &mut Ui, key: &str, label: &str, accent: Color32) {
         let is_active = self.current_nav == key;
-        let mut text = egui::RichText::new(label).size(12.0);
-        let mut btn = egui::Button::new(if is_active { text.color(Color32::WHITE).strong() } else { text.color(TEXT_SECONDARY) })
-            .corner_radius(5.0)
-            .min_size(Vec2::new(ui.available_width(), 26.0));
-
-        if is_active {
-            btn = btn.fill(BG_CARD);
+        let text = egui::RichText::new(label).size(12.0);
+        let btn = if is_active {
+            egui::Button::new(text.color(Color32::WHITE).strong())
+                .fill(BG_CARD)
+                .stroke(Stroke::new(1.0, accent))
+                .corner_radius(6.0)
+                .min_size(Vec2::new(ui.available_width(), 28.0))
         } else {
-            btn = btn.fill(Color32::TRANSPARENT);
-        }
+            egui::Button::new(text.color(TEXT_SECONDARY))
+                .fill(Color32::TRANSPARENT)
+                .corner_radius(6.0)
+                .min_size(Vec2::new(ui.available_width(), 28.0))
+        };
 
         if ui.add(btn).clicked() {
             self.current_nav = key.to_string();
-            self.active_stream_service = None;
             self.load_view_data();
         }
     }
 
     // -------------------------------------------------------------------------
-    // CENTER PANEL
+    // CENTER PANEL (Main View)
     // -------------------------------------------------------------------------
     fn render_center_panel(&mut self, ui: &mut Ui, accent: Color32) {
-        ui.vertical(|ui| {
-            ui.set_width(ui.available_width() - 280.0);
-            ui.add_space(14.0);
+        // 1. Header Bar
+        ui.horizontal(|ui| {
+            let title = match self.current_nav.as_str() {
+                "tracks" => "All Tracks",
+                "favourites" => "Favourites",
+                "albums" => "Albums",
+                "artists" => "Artists",
+                "genres" => "Genres",
+                "years" => "Years",
+                "streaming" => "Streaming Services",
+                _ => "Library",
+            };
+            ui.label(egui::RichText::new(title).color(TEXT_PRIMARY).size(18.0).strong());
 
-            // 1. Header Bar
-            ui.horizontal(|ui| {
-                let title = match self.current_nav.as_str() {
-                    "tracks" => "All Tracks",
-                    "favourites" => "Favourites",
-                    "albums" => "Albums",
-                    "artists" => "Artists",
-                    "genres" => "Genres",
-                    "years" => "Years",
-                    "streaming" => "Streaming Services",
-                    _ => "Library",
-                };
-                ui.label(egui::RichText::new(title).color(TEXT_PRIMARY).size(18.0).strong());
+            let count_str = match self.current_nav.as_str() {
+                "tracks" => format!("{} tracks", self.tracks.len()),
+                "favourites" => format!("{} favourites", self.tracks.len()),
+                "albums" => format!("{} albums", self.simple_items.len()),
+                "artists" => format!("{} artists", self.simple_items.len()),
+                "streaming" => format!("{} services", self.stream_services.len()),
+                _ => format!("{} items", self.simple_items.len()),
+            };
+            ui.label(egui::RichText::new(count_str).color(TEXT_MUTED).size(11.0));
 
-                let count_str = match self.current_nav.as_str() {
-                    "tracks" => format!("{} tracks", self.tracks.len()),
-                    "favourites" => format!("{} favourites", self.tracks.len()),
-                    "albums" => format!("{} albums", self.simple_items.len()),
-                    "artists" => format!("{} artists", self.simple_items.len()),
-                    "streaming" => format!("{} services", self.stream_services.len()),
-                    _ => format!("{} items", self.simple_items.len()),
-                };
-                ui.label(egui::RichText::new(count_str).color(TEXT_MUTED).size(11.0));
-
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui.add(egui::Button::new("▶  Play All").corner_radius(5.0).fill(accent)).clicked() {
-                        if let Some(first) = self.tracks.first() {
-                            self.client.command("play_path", &[("path", &first.path)]);
-                        }
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                if ui.add(egui::Button::new("▶  Play All").corner_radius(5.0).fill(accent)).clicked() {
+                    if let Some(first) = self.tracks.first() {
+                        self.client.command("play_path", &[("path", &first.path)]);
                     }
-                    if ui.add(egui::Button::new("🔀  Shuffle").corner_radius(5.0)).clicked() {
-                        self.client.command("mode", &[("value", "shuffle")]);
-                        if let Some(first) = self.tracks.first() {
-                            self.client.command("play_path", &[("path", &first.path)]);
-                        }
+                }
+                if ui.add(egui::Button::new("🔀  Shuffle").corner_radius(5.0)).clicked() {
+                    self.client.command("mode", &[("value", "shuffle")]);
+                    if let Some(first) = self.tracks.first() {
+                        self.client.command("play_path", &[("path", &first.path)]);
                     }
-                });
+                }
             });
-
-            // 2. Search Field
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("🔍").size(12.0).color(TEXT_MUTED));
-                ui.add(egui::TextEdit::singleline(&mut self.search_query).hint_text("Search library...").desired_width(ui.available_width() - 20.0));
-            });
-
-            ui.add_space(10.0);
-
-            // 3. Body View: Streaming vs Table
-            if self.current_nav == "streaming" {
-                self.render_streaming_view(ui, accent);
-            } else if self.current_nav == "tracks" || self.current_nav == "favourites" {
-                self.render_tracks_table(ui, accent);
-            } else {
-                self.render_simple_table(ui, accent);
-            }
         });
+
+        // 2. Search Field
+        ui.add_space(8.0);
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("🔍").size(12.0).color(TEXT_MUTED));
+            ui.add(egui::TextEdit::singleline(&mut self.search_query).hint_text("Search library...").desired_width(ui.available_width() - 10.0));
+        });
+
+        ui.add_space(10.0);
+
+        // 3. Body View: Streaming vs Table
+        if self.current_nav == "streaming" {
+            self.render_streaming_view(ui, accent);
+        } else if self.current_nav == "tracks" || self.current_nav == "favourites" {
+            self.render_tracks_table(ui, accent);
+        } else {
+            self.render_simple_table(ui, accent);
+        }
     }
 
     fn render_tracks_table(&mut self, ui: &mut Ui, accent: Color32) {
+        let avail_w = (ui.available_width() - 16.0).max(320.0);
+        let w_num = 32.0;
+        let w_time = 48.0;
+        let remaining = (avail_w - w_num - w_time).max(200.0);
+        let w_title = remaining * 0.42;
+        let w_artist = remaining * 0.29;
+        let w_album = remaining * 0.29;
+
         // Table Header
-        Frame::new().fill(BG_PANEL).inner_margin(6.0).show(ui, |ui| {
+        Frame::new().fill(BG_PANEL).inner_margin(Vec2::new(8.0, 6.0)).corner_radius(4.0).show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("#").size(10.0).strong().color(TEXT_MUTED));
-                ui.add_space(15.0);
-                ui.label(egui::RichText::new("TITLE").size(10.0).strong().color(TEXT_MUTED));
-                ui.add_space(200.0);
-                ui.label(egui::RichText::new("ARTIST").size(10.0).strong().color(TEXT_MUTED));
-                ui.add_space(120.0);
-                ui.label(egui::RichText::new("ALBUM").size(10.0).strong().color(TEXT_MUTED));
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    ui.label(egui::RichText::new("TIME").size(10.0).strong().color(TEXT_MUTED));
-                });
+                ui.add_sized([w_num, 16.0], egui::Label::new(egui::RichText::new("#").size(10.0).strong().color(TEXT_MUTED)));
+                ui.add_sized([w_title, 16.0], egui::Label::new(egui::RichText::new("TITLE").size(10.0).strong().color(TEXT_MUTED)));
+                ui.add_sized([w_artist, 16.0], egui::Label::new(egui::RichText::new("ARTIST").size(10.0).strong().color(TEXT_MUTED)));
+                ui.add_sized([w_album, 16.0], egui::Label::new(egui::RichText::new("ALBUM").size(10.0).strong().color(TEXT_MUTED)));
+                ui.add_sized([w_time, 16.0], egui::Label::new(egui::RichText::new("TIME").size(10.0).strong().color(TEXT_MUTED)));
             });
         });
 
+        ui.add_space(4.0);
+
         let query = self.search_query.to_lowercase();
-        ScrollArea::vertical().show(ui, |ui| {
+        ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             for (idx, track) in self.tracks.iter().enumerate() {
                 if !query.is_empty() && !track.title.to_lowercase().contains(&query) && !track.artist.to_lowercase().contains(&query) {
                     continue;
@@ -468,34 +478,29 @@ impl SonixApp {
                 let is_current = self.current_state.as_ref().map(|s| s.path == track.path).unwrap_or(false);
 
                 let fill = if is_current {
-                    Color32::from_rgba_premultiplied(accent.r(), accent.g(), accent.b(), 35)
+                    Color32::from_rgba_premultiplied(accent.r(), accent.g(), accent.b(), 40)
                 } else {
                     row_bg
                 };
 
-                Frame::new().fill(fill).inner_margin(Vec2::new(8.0, 5.0)).show(ui, |ui| {
-                    let mut row = ui.horizontal(|ui| {
+                Frame::new().fill(fill).corner_radius(4.0).inner_margin(Vec2::new(8.0, 5.0)).show(ui, |ui| {
+                    let row = ui.horizontal(|ui| {
                         let num_color = if is_current { accent } else { TEXT_MUTED };
-                        ui.label(egui::RichText::new(format!("{:02}", track.track_num.max(1))).size(11.0).color(num_color));
+                        ui.add_sized([w_num, 18.0], egui::Label::new(egui::RichText::new(format!("{:02}", track.track_num.max(1))).size(11.0).color(num_color)));
 
-                        ui.add_space(10.0);
                         let title_color = if is_current { accent } else { TEXT_PRIMARY };
-                        let title_lbl = ui.label(egui::RichText::new(&track.title).size(12.0).strong().color(title_color));
-                        title_lbl.context_menu(|ui| {
+                        let title_lbl = egui::Label::new(egui::RichText::new(&track.title).size(12.0).strong().color(title_color)).truncate();
+                        let title_resp = ui.add_sized([w_title, 18.0], title_lbl);
+                        title_resp.context_menu(|ui| {
                             if ui.button("Toggle Favourite").clicked() {
                                 self.client.toggle_favorite(&track.path);
                                 ui.close();
                             }
                         });
 
-                        ui.add_space(10.0);
-                        ui.label(egui::RichText::new(&track.artist).size(11.0).color(TEXT_SECONDARY));
-
-                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            ui.label(egui::RichText::new(format_duration(track.duration)).size(11.0).color(TEXT_MUTED));
-                            ui.add_space(20.0);
-                            ui.label(egui::RichText::new(&track.album).size(11.0).color(TEXT_MUTED));
-                        });
+                        ui.add_sized([w_artist, 18.0], egui::Label::new(egui::RichText::new(&track.artist).size(11.0).color(TEXT_SECONDARY)).truncate());
+                        ui.add_sized([w_album, 18.0], egui::Label::new(egui::RichText::new(&track.album).size(11.0).color(TEXT_MUTED)).truncate());
+                        ui.add_sized([w_time, 18.0], egui::Label::new(egui::RichText::new(format_duration(track.duration)).size(11.0).color(TEXT_MUTED)));
                     });
 
                     if row.response.interact(egui::Sense::click()).double_clicked() {
@@ -506,11 +511,11 @@ impl SonixApp {
         });
     }
 
-    fn render_simple_table(&mut self, ui: &mut Ui, accent: Color32) {
-        ScrollArea::vertical().show(ui, |ui| {
+    fn render_simple_table(&mut self, ui: &mut Ui, _accent: Color32) {
+        ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             for (idx, item) in self.simple_items.iter().enumerate() {
                 let fill = if idx % 2 == 0 { ROW_EVEN } else { ROW_ODD };
-                Frame::new().fill(fill).inner_margin(8.0).show(ui, |ui| {
+                Frame::new().fill(fill).corner_radius(4.0).inner_margin(8.0).show(ui, |ui| {
                     ui.horizontal(|ui| {
                         ui.label(egui::RichText::new(&item.name).size(12.5).strong().color(TEXT_PRIMARY));
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -523,7 +528,7 @@ impl SonixApp {
     }
 
     // -------------------------------------------------------------------------
-    // STREAMING SERVICES VIEW (YouTube Music, Tidal, Qobuz, Podcasts, Radio)
+    // STREAMING SERVICES VIEW
     // -------------------------------------------------------------------------
     fn render_streaming_view(&mut self, ui: &mut Ui, accent: Color32) {
         if let Some(ref service_id) = self.active_stream_service.clone() {
@@ -545,10 +550,10 @@ impl SonixApp {
             }
 
             ui.add_space(8.0);
-            ScrollArea::vertical().show(ui, |ui| {
+            ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                 for (idx, row) in self.stream_list.rows.iter().enumerate() {
                     let fill = if idx % 2 == 0 { ROW_EVEN } else { ROW_ODD };
-                    Frame::new().fill(fill).inner_margin(8.0).show(ui, |ui| {
+                    Frame::new().fill(fill).corner_radius(4.0).inner_margin(8.0).show(ui, |ui| {
                         let resp = ui.horizontal(|ui| {
                             let icon = if row.playable { "▶" } else { "📁" };
                             ui.label(egui::RichText::new(icon).color(accent).size(12.0));
@@ -633,248 +638,230 @@ impl SonixApp {
     // RIGHT PANEL (Now Playing)
     // -------------------------------------------------------------------------
     fn render_right_panel(&mut self, ui: &mut Ui, accent: Color32) {
-        Frame::new()
-            .fill(BG_PANEL)
-            .inner_margin(14.0)
-            .show(ui, |ui| {
-                ui.set_width(260.0);
-                ui.set_min_height(ui.available_height());
+        ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+            ui.vertical_centered(|ui| {
+                // 1. Album Artwork
+                let art_size = (ui.available_width() - 10.0).clamp(160.0, 240.0);
+                if let Some(ref tex) = self.art_texture {
+                    ui.add(egui::Image::new(tex).fit_to_exact_size(Vec2::splat(art_size)).corner_radius(12.0));
+                } else {
+                    self.draw_vinyl_placeholder(ui, art_size);
+                }
 
-                ui.vertical_centered(|ui| {
-                    // 1. Album Artwork
-                    let art_size = 220.0;
-                    if let Some(ref tex) = self.art_texture {
-                        ui.add(egui::Image::new(tex).fit_to_exact_size(Vec2::splat(art_size)).corner_radius(12.0));
-                    } else {
-                        self.draw_vinyl_placeholder(ui, art_size);
-                    }
+                ui.add_space(12.0);
 
-                    ui.add_space(14.0);
+                // 2. Track Title & Artist
+                let (title, artist, badge) = if let Some(ref s) = self.current_state {
+                    let t = if !s.title.is_empty() { s.title.clone() } else { "TempoTec Variations V1".to_string() };
+                    let a = if !s.artist.is_empty() { s.artist.clone() } else { s.album.clone() };
+                    let b = s.format_badge();
+                    (t, a, b)
+                } else {
+                    ("No Track Playing".to_string(), "Connect player to start".to_string(), String::new())
+                };
 
-                    // 2. Track Title & Artist
-                    let (title, artist, badge) = if let Some(ref s) = self.current_state {
-                        let t = if !s.title.is_empty() { s.title.clone() } else { "TempoTec Variations V1".to_string() };
-                        let a = if !s.artist.is_empty() { s.artist.clone() } else { s.album.clone() };
-                        let b = s.format_badge();
-                        (t, a, b)
-                    } else {
-                        ("No Track Playing".to_string(), "Connect player to start".to_string(), String::new())
-                    };
+                ui.add(egui::Label::new(egui::RichText::new(title).size(14.0).strong().color(TEXT_PRIMARY)).truncate());
+                ui.add(egui::Label::new(egui::RichText::new(artist).size(11.0).color(TEXT_SECONDARY)).truncate());
 
-                    ui.label(egui::RichText::new(title).size(14.0).strong().color(TEXT_PRIMARY));
-                    ui.label(egui::RichText::new(artist).size(11.0).color(TEXT_SECONDARY));
-
-                    if !badge.is_empty() {
-                        ui.add_space(4.0);
-                        Frame::new()
-                            .fill(BG_CARD)
-                            .stroke(Stroke::new(1.0, BORDER))
-                            .corner_radius(10.0)
-                            .inner_margin(Vec2::new(8.0, 2.0))
-                            .show(ui, |ui| {
-                                ui.label(egui::RichText::new(badge).size(9.5).color(accent).strong());
-                            });
-                    }
-
-                    ui.add_space(12.0);
-
-                    // 3. Modern Rounded Seekbar & Timestamps
-                    let total_sec = self.current_state.as_ref().map(|s| s.duration).unwrap_or(0);
-                    let max_f = (total_sec as f32).max(1.0);
-
-                    let (seek_resp, seek_changed) = rounded_slider(ui, &mut self.seek_val, 0.0, max_f, accent, 230.0, 16.0);
-                    if seek_resp.drag_started() {
-                        self.is_seeking = true;
-                    }
-                    if seek_resp.drag_stopped() || seek_changed {
-                        self.is_seeking = false;
-                        self.client.seek(self.seek_val as u32);
-                    }
-
-                    ui.horizontal(|ui| {
-                        let cur_str = format_duration(self.seek_val as u32);
-                        let tot_str = format_duration(total_sec);
-                        ui.label(egui::RichText::new(cur_str).size(10.0).color(TEXT_MUTED));
-                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            ui.label(egui::RichText::new(tot_str).size(10.0).color(TEXT_MUTED));
-                        });
-                    });
-
-                    ui.add_space(10.0);
-
-                    // 4. Transport Controls
-                    ui.horizontal(|ui| {
-                        // Shuffle / Mode
-                        let mode_icon = match self.current_state.as_ref().map(|s| s.mode.as_str()).unwrap_or("normal") {
-                            "repeat" => "🔁",
-                            "repeat_one" => "🔂",
-                            "shuffle" => "🔀",
-                            _ => "➡",
-                        };
-                        if ui.add(egui::Button::new(mode_icon).frame(false)).clicked() {
-                            self.client.command("mode", &[("value", "next")]);
-                        }
-
-                        ui.add_space(12.0);
-
-                        // Previous
-                        if prev_track_button(ui, 32.0).clicked() {
-                            self.client.prev();
-                        }
-
-                        ui.add_space(8.0);
-
-                        // Large Play / Pause Vector Button
-                        let is_playing = self.current_state.as_ref().map(|s| s.is_playing()).unwrap_or(false);
-                        if play_pause_button(ui, is_playing, accent, 46.0).clicked() {
-                            self.client.toggle_play();
-                        }
-
-                        ui.add_space(8.0);
-
-                        // Next
-                        if next_track_button(ui, 32.0).clicked() {
-                            self.client.next();
-                        }
-
-                        ui.add_space(12.0);
-
-                        // Favourite Button
-                        let is_fav = self.current_state.as_ref().map(|s| s.favourite).unwrap_or(false);
-                        let fav_style = self.settings.effective_fav_mark();
-                        if favourite_button(ui, is_fav, fav_style, accent, 30.0).clicked() {
-                            if let Some(ref s) = self.current_state {
-                                self.client.toggle_favorite(&s.path);
-                            }
-                        }
-                    });
-
-                    ui.add_space(14.0);
-
-                    // 5. Hardware DSP Quick-Pills
+                if !badge.is_empty() {
+                    ui.add_space(4.0);
                     Frame::new()
                         .fill(BG_CARD)
                         .stroke(Stroke::new(1.0, BORDER))
-                        .corner_radius(8.0)
-                        .inner_margin(8.0)
+                        .corner_radius(10.0)
+                        .inner_margin(Vec2::new(8.0, 2.0))
                         .show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                ui.label(egui::RichText::new("HARDWARE DSP").size(8.5).strong().color(TEXT_MUTED));
-                                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                    if ui.add(egui::Button::new(egui::RichText::new("Tune ⚙").size(9.0).color(accent)).frame(false)).clicked() {
-                                        self.show_dsp = true;
-                                    }
-                                });
-                            });
+                            ui.label(egui::RichText::new(badge).size(9.5).color(accent).strong());
+                        });
+                }
 
-                            ui.add_space(6.0);
-                            ui.horizontal(|ui| {
-                                let mseb_on = self.current_state.as_ref().map(|s| s.mseb).unwrap_or(false);
-                                if dsp_pill_button(ui, "MSEB", mseb_on, accent, 52.0, 22.0).clicked() {
-                                    self.client.set_mseb(!mseb_on);
-                                }
+                ui.add_space(10.0);
 
-                                let eq_on = self.current_state.as_ref().map(|s| s.eq).unwrap_or(false);
-                                if dsp_pill_button(ui, "EQ", eq_on, accent, 42.0, 22.0).clicked() {
-                                    self.client.set_eq(!eq_on);
-                                }
+                // 3. Modern Rounded Seekbar & Timestamps
+                let total_sec = self.current_state.as_ref().map(|s| s.duration).unwrap_or(0);
+                let max_f = (total_sec as f32).max(1.0);
 
-                                let peq_on = self.current_state.as_ref().map(|s| s.peq).unwrap_or(false);
-                                if dsp_pill_button(ui, "PEQ", peq_on, accent, 46.0, 22.0).clicked() {
-                                    self.client.set_peq(!peq_on);
-                                }
+                let slider_w = (ui.available_width() - 8.0).max(180.0);
+                let (seek_resp, seek_changed) = rounded_slider(ui, &mut self.seek_val, 0.0, max_f, accent, slider_w, 16.0);
+                if seek_resp.drag_started() {
+                    self.is_seeking = true;
+                }
+                if seek_resp.drag_stopped() || seek_changed {
+                    self.is_seeking = false;
+                    self.client.seek(self.seek_val as u32);
+                }
 
-                                let prof = self.current_state.as_ref().map(|s| s.peq_profile).unwrap_or(1);
-                                let p_label = format!("P{}", prof);
-                                if dsp_pill_button(ui, &p_label, true, accent, 40.0, 22.0).clicked() {
-                                    let next_p = if prof == 1 { 2 } else { 1 };
-                                    self.client.set_peq_profile(next_p);
+                ui.horizontal(|ui| {
+                    let cur_str = format_duration(self.seek_val as u32);
+                    let tot_str = format_duration(total_sec);
+                    ui.label(egui::RichText::new(cur_str).size(10.0).color(TEXT_MUTED));
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        ui.label(egui::RichText::new(tot_str).size(10.0).color(TEXT_MUTED));
+                    });
+                });
+
+                ui.add_space(10.0);
+
+                // 4. Transport Controls
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing = Vec2::new(6.0, 0.0);
+
+                    // Shuffle / Mode
+                    let mode_icon = match self.current_state.as_ref().map(|s| s.mode.as_str()).unwrap_or("normal") {
+                        "repeat" => "🔁",
+                        "repeat_one" => "🔂",
+                        "shuffle" => "🔀",
+                        _ => "➡",
+                    };
+                    if ui.add(egui::Button::new(mode_icon).frame(false)).clicked() {
+                        self.client.command("mode", &[("value", "next")]);
+                    }
+
+                    // Previous
+                    if prev_track_button(ui, 32.0).clicked() {
+                        self.client.prev();
+                    }
+
+                    // Large Play / Pause Vector Button
+                    let is_playing = self.current_state.as_ref().map(|s| s.is_playing()).unwrap_or(false);
+                    if play_pause_button(ui, is_playing, accent, 46.0).clicked() {
+                        self.client.toggle_play();
+                    }
+
+                    // Next
+                    if next_track_button(ui, 32.0).clicked() {
+                        self.client.next();
+                    }
+
+                    // Favourite Button
+                    let is_fav = self.current_state.as_ref().map(|s| s.favourite).unwrap_or(false);
+                    let fav_style = self.settings.effective_fav_mark();
+                    if favourite_button(ui, is_fav, fav_style, accent, 30.0).clicked() {
+                        if let Some(ref s) = self.current_state {
+                            self.client.toggle_favorite(&s.path);
+                        }
+                    }
+                });
+
+                ui.add_space(12.0);
+
+                // 5. Hardware DSP Quick-Pills Card
+                Frame::new()
+                    .fill(BG_CARD)
+                    .stroke(Stroke::new(1.0, BORDER))
+                    .corner_radius(8.0)
+                    .inner_margin(8.0)
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(egui::RichText::new("HARDWARE DSP").size(8.5).strong().color(TEXT_MUTED));
+                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                if ui.add(egui::Button::new(egui::RichText::new("Tune ⚙").size(9.0).color(accent)).frame(false)).clicked() {
+                                    self.show_dsp = true;
                                 }
                             });
                         });
 
-                    ui.add_space(14.0);
+                        ui.add_space(6.0);
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing = Vec2::new(4.0, 0.0);
+                            let mseb_on = self.current_state.as_ref().map(|s| s.mseb).unwrap_or(false);
+                            if dsp_pill_button(ui, "MSEB", mseb_on, accent, 48.0, 22.0).clicked() {
+                                self.client.set_mseb(!mseb_on);
+                            }
 
-                    // 6. Modern Rounded Volume Slider
-                    ui.horizontal(|ui| {
-                        let cur_vol = self.volume_val as u8;
-                        if volume_speaker_icon(ui, cur_vol, accent, 24.0).clicked() {
-                            let new_v = if cur_vol > 0 { 0 } else { 25 };
-                            self.client.set_volume(new_v);
-                        }
+                            let eq_on = self.current_state.as_ref().map(|s| s.eq).unwrap_or(false);
+                            if dsp_pill_button(ui, "EQ", eq_on, accent, 40.0, 22.0).clicked() {
+                                self.client.set_eq(!eq_on);
+                            }
 
-                        let (vol_resp, vol_changed) = rounded_slider(ui, &mut self.volume_val, 0.0, 100.0, accent, 140.0, 16.0);
-                        if vol_changed || vol_resp.drag_stopped() {
-                            self.client.set_volume(self.volume_val as u8);
-                        }
+                            let peq_on = self.current_state.as_ref().map(|s| s.peq).unwrap_or(false);
+                            if dsp_pill_button(ui, "PEQ", peq_on, accent, 44.0, 22.0).clicked() {
+                                self.client.set_peq(!peq_on);
+                            }
 
-                        ui.label(egui::RichText::new(format!("{}%", self.volume_val as u8)).size(10.5).color(TEXT_MUTED));
+                            let prof = self.current_state.as_ref().map(|s| s.peq_profile).unwrap_or(1);
+                            let p_label = format!("P{}", prof);
+                            if dsp_pill_button(ui, &p_label, true, accent, 38.0, 22.0).clicked() {
+                                let next_p = if prof == 1 { 2 } else { 1 };
+                                self.client.set_peq_profile(next_p);
+                            }
+                        });
                     });
+
+                ui.add_space(12.0);
+
+                // 6. Modern Rounded Volume Slider
+                ui.horizontal(|ui| {
+                    let cur_vol = self.volume_val as u8;
+                    if volume_speaker_icon(ui, cur_vol, accent, 24.0).clicked() {
+                        let new_v = if cur_vol > 0 { 0 } else { 25 };
+                        self.client.set_volume(new_v);
+                    }
+
+                    let vol_w = (ui.available_width() - 40.0).max(100.0);
+                    let (vol_resp, vol_changed) = rounded_slider(ui, &mut self.volume_val, 0.0, 100.0, accent, vol_w, 16.0);
+                    if vol_changed || vol_resp.drag_stopped() {
+                        self.client.set_volume(self.volume_val as u8);
+                    }
+
+                    ui.label(egui::RichText::new(format!("{}%", cur_vol)).size(10.0).color(TEXT_MUTED));
                 });
             });
+        });
     }
 
     // -------------------------------------------------------------------------
-    // MODALS: Settings, Audio & DSP, Devices
+    // MODALS: Settings, DSP, Devices
     // -------------------------------------------------------------------------
     fn render_settings_modal(&mut self, ctx: &egui::Context, accent: Color32) {
-        egui::Window::new("⚙️  Preferences & Settings")
+        egui::Window::new("⚙️  Application Settings")
             .collapsible(false)
             .resizable(false)
-            .default_width(520.0)
+            .default_width(450.0)
             .show(ctx, |ui| {
+                ui.label(egui::RichText::new("Theme & Accent Color:").strong().color(TEXT_PRIMARY));
                 ui.add_space(6.0);
 
-                // Accent Color
-                Frame::new().fill(BG_CARD).stroke(Stroke::new(1.0, BORDER)).corner_radius(8.0).inner_margin(12.0).show(ui, |ui| {
-                    ui.label(egui::RichText::new("🎨   Accent Color").size(12.0).strong().color(TEXT_PRIMARY));
-                    ui.label(egui::RichText::new("Choose your accent color or follow player theme:").size(10.0).color(TEXT_MUTED));
-                    ui.add_space(6.0);
+                let presets = ACCENT_PRESETS;
+                egui::Grid::new("accent_grid").spacing(Vec2::new(8.0, 8.0)).show(ui, |ui| {
+                    for (i, preset) in presets.iter().enumerate() {
+                        let color = preset.color;
+                        let is_sel = self.settings.accent_preference == preset.id;
+                        let mut btn = egui::Button::new(egui::RichText::new(preset.name).size(11.0).color(Color32::WHITE))
+                            .fill(color)
+                            .corner_radius(6.0)
+                            .min_size(Vec2::new(95.0, 26.0));
 
-                    // Device option
-                    let dev_accent_str = if self.settings.device_accent.is_empty() { "#FF8C00".to_string() } else { self.settings.device_accent.clone() };
-                    let is_device = self.settings.accent_preference == "device";
-                    ui.horizontal(|ui| {
-                        let dev_col = parse_hex_color(&dev_accent_str);
-                        let (rect, resp) = ui.allocate_exact_size(Vec2::splat(16.0), egui::Sense::click());
-                        ui.painter().circle_filled(rect.center(), 8.0, dev_col);
+                        if is_sel {
+                            btn = btn.stroke(Stroke::new(2.0, Color32::WHITE));
+                        }
 
-                        if ui.selectable_label(is_device, format!("From player (device default) [{}]", dev_accent_str)).clicked() || resp.clicked() {
-                            self.settings.accent_preference = "device".to_string();
+                        if ui.add(btn).clicked() {
+                            self.settings.accent_preference = preset.id.to_string();
                             self.settings.save();
                         }
-                    });
 
-                    ui.add_space(6.0);
-                    // 14 Presets
-                    egui::Grid::new("accent_grid").spacing([8.0, 8.0]).show(ui, |ui| {
-                        for (idx, p) in ACCENT_PRESETS.iter().enumerate() {
-                            let is_sel = self.settings.accent_preference == p.id;
-                            let (rect, resp) = ui.allocate_exact_size(Vec2::splat(16.0), egui::Sense::click());
-                            ui.painter().circle_filled(rect.center(), 8.0, p.color);
-
-                            if ui.selectable_label(is_sel, p.name).clicked() || resp.clicked() {
-                                self.settings.accent_preference = p.id.to_string();
-                                self.settings.save();
-                            }
-                            if (idx + 1) % 4 == 0 {
-                                ui.end_row();
-                            }
+                        if (i + 1) % 4 == 0 {
+                            ui.end_row();
                         }
-                    });
+                    }
                 });
 
+                ui.add_space(10.0);
+                if ui.selectable_label(self.settings.accent_preference == "device", "🎨 Follow Player Hardware Accent").clicked() {
+                    self.settings.accent_preference = "device".to_string();
+                    self.settings.save();
+                }
+
+                ui.add_space(12.0);
+                ui.separator();
                 ui.add_space(8.0);
 
-                // Favourite Icon Style
+                // Favourite Mark
                 Frame::new().fill(BG_CARD).stroke(Stroke::new(1.0, BORDER)).corner_radius(8.0).inner_margin(12.0).show(ui, |ui| {
-                    ui.label(egui::RichText::new("⭐ / ♥   Favourite Icon Style").size(12.0).strong().color(TEXT_PRIMARY));
+                    ui.label(egui::RichText::new("⭐   Favourite Icon Style").size(12.0).strong().color(TEXT_PRIMARY));
                     ui.add_space(6.0);
                     ui.horizontal(|ui| {
-                        if ui.selectable_label(self.settings.fav_mark_preference == "device", "Auto (from player)").clicked() {
-                            self.settings.fav_mark_preference = "device".to_string();
-                            self.settings.save();
-                        }
                         if ui.selectable_label(self.settings.fav_mark_preference == "heart", "Heart (♥ / ♡)").clicked() {
                             self.settings.fav_mark_preference = "heart".to_string();
                             self.settings.save();
