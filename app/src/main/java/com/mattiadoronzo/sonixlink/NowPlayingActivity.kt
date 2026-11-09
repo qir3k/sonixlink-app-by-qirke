@@ -242,6 +242,8 @@ class NowPlayingActivity : AppCompatActivity() {
         }
         views.progressSeek.thumb = ring
         views.progressSeek.thumbOffset = dp(9)
+        showMode(Session.heldMode.resolve(Session.state.mode))
+        showFavourite(shownFavourite(Session.state))
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -460,12 +462,7 @@ class NowPlayingActivity : AppCompatActivity() {
         views.favouriteButton.setImageResource(
             AppearancePreferences.favouriteIcon(this, starred)
         )
-        views.favouriteButton.imageTintList = android.content.res.ColorStateList.valueOf(
-            androidx.core.content.ContextCompat.getColor(
-                this,
-                if (starred) R.color.favourite else R.color.text_secondary,
-            )
-        )
+        views.favouriteButton.imageTintList = Accent.onOff(this, starred)
     }
 
     private fun clock(seconds: Long): String {

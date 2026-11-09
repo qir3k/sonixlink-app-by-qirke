@@ -533,12 +533,7 @@ class MainActivity : AppCompatActivity() {
         views.favouriteButton.setImageResource(
             AppearancePreferences.favouriteIcon(this, starred)
         )
-        views.favouriteButton.imageTintList = android.content.res.ColorStateList.valueOf(
-            androidx.core.content.ContextCompat.getColor(
-                this,
-                if (starred) R.color.favourite else R.color.text_secondary,
-            )
-        )
+        views.favouriteButton.imageTintList = Accent.onOff(this, starred)
     }
 
     private fun showMode(mode: PlayMode) {
@@ -564,6 +559,7 @@ class MainActivity : AppCompatActivity() {
         )
         Accent.circleButton(views.playButton, 56)
         showMode(Session.heldMode.resolve(Session.state.mode))
+        showFavourite(shownFavourite(Session.state))
     }
 
     /** Routes the phone's volume keys to the player's volume. */
