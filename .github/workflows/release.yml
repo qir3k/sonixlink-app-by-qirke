@@ -183,7 +183,14 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Assemble Release APK
-        run: ./gradlew assembleRelease --build-cache --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew assembleRelease --build-cache --stacktrace 2>&1 | tee gradle-build.log || {
+            echo "::error::$(grep -E 'FAILURE: Build failed|Exception:|error:|Compilation error' gradle-build.log | head -n 5)"
+            echo "=== BUILD LOG FAILURE TAIL ==="
+            tail -n 80 gradle-build.log
+            exit 1
+          }
 
       - name: Stage Android APK Artifact
         env:
