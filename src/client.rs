@@ -285,6 +285,60 @@ impl SonixClient {
         let req = format!("/api/art?path={}&max=0", urlencoding(path));
         self.raw_http_get(&req, 2500).ok()
     }
+
+    pub fn download_db(&self, dest_path: &std::path::Path) -> Result<usize, String> {
+        let addr_str = format!("{}:{}", self.host, self.port);
+        let socket_addr: SocketAddr = addr_str
+            .parse()
+            .map_err(|e| format!("Invalid address: {}", e))?;
+
+        let mut stream = TcpStream::connect_timeout(&socket_addr, Duration::from_millis(5000))
+            .map_err(|e| format!("Connect error: {}", e))?;
+
+        stream
+            .set_read_timeout(Some(Duration::from_millis(15000)))
+            .map_err(|e| format!("Timeout error: {}", e))?;
+        stream
+            .set_write_timeout(Some(Duration::from_millis(5000)))
+            .map_err(|e| format!("Timeout error: {}", e))?;
+
+        let request = format!(
+            "GET /api/db HTTP/1.1\r\nHost: {}\r\nUser-Agent: SonixLink-Rust/1.0\r\nConnection: close\r\n\r\n",
+            self.host
+        );
+        stream
+            .write_all(request.as_bytes())
+            .map_err(|e| format!("Write error: {}", e))?;
+
+        let mut response = Vec::with_capacity(4 * 1024 * 1024);
+        let mut buf = [0u8; 16384];
+        loop {
+            match stream.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => response.extend_from_slice(&buf[..n]),
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut => {
+                    break;
+                }
+                Err(e) => return Err(format!("Read error: {}", e)),
+            }
+        }
+
+        let header_end = response
+            .windows(4)
+            .position(|w| w == b"\r\n\r\n")
+            .ok_or_else(|| "Malformed HTTP response".to_string())?;
+
+        let body = &response[header_end + 4..];
+        if body.len() < 100 || !body.starts_with(b"SQLite format 3") {
+            return Err("Invalid database received from player".to_string());
+        }
+
+        if let Some(parent) = dest_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        std::fs::write(dest_path, body).map_err(|e| format!("Failed to write db file: {}", e))?;
+        Ok(body.len())
+    }
 }
 
 fn urlencoding(input: &str) -> String {

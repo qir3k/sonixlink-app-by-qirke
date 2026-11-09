@@ -83,20 +83,37 @@ impl LibraryDb {
         }
     }
 
-    fn find_db_path() -> PathBuf {
-        let candidates = [
-            PathBuf::from("library.db"),
-            PathBuf::from("sonixlink_library.db"),
-            std::env::current_exe()
-                .ok()
-                .and_then(|p| p.parent().map(|p| p.join("library.db")))
-                .unwrap_or_else(|| PathBuf::from("library.db")),
-        ];
+    pub fn find_db_path() -> PathBuf {
+        let mut candidates = Vec::new();
+
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(parent) = exe.parent() {
+                candidates.push(parent.join("library.db"));
+            }
+        }
+        candidates.push(PathBuf::from("library.db"));
+        candidates.push(PathBuf::from("sonixlink_library.db"));
+
+        if let Ok(local_app) = std::env::var("LOCALAPPDATA") {
+            candidates.push(PathBuf::from(local_app).join("SonixLink").join("library.db"));
+        }
+        if let Ok(app_data) = std::env::var("APPDATA") {
+            candidates.push(PathBuf::from(app_data).join("SonixLink").join("library.db"));
+        }
+
         for c in &candidates {
-            if c.exists() {
+            if c.exists() && c.metadata().map(|m| m.len() > 100).unwrap_or(false) {
                 return c.clone();
             }
         }
+
+        // Default write target if none exist yet
+        if let Ok(local_app) = std::env::var("LOCALAPPDATA") {
+            let p = PathBuf::from(local_app).join("SonixLink").join("library.db");
+            let _ = std::fs::create_dir_all(p.parent().unwrap());
+            return p;
+        }
+
         PathBuf::from("library.db")
     }
 

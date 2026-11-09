@@ -39,6 +39,10 @@ pub struct SonixApp {
     pub show_devices: bool,
     pub manual_host_input: String,
 
+    pub is_syncing_db: bool,
+    pub sync_db_rx: Receiver<bool>,
+    pub sync_db_tx: Sender<bool>,
+
     pub last_poll: Instant,
     pub state_rx: Receiver<PlayerState>,
     pub state_tx: Sender<PlayerState>,
@@ -65,6 +69,7 @@ impl SonixApp {
 
         let (state_tx, state_rx) = channel();
         let (art_tx, art_rx) = channel();
+        let (sync_db_tx, sync_db_rx) = channel();
 
         // Background poller thread
         let client_clone = client.clone();
@@ -100,6 +105,10 @@ impl SonixApp {
             show_devices: false,
             manual_host_input: "192.168.0.17".to_string(),
 
+            is_syncing_db: false,
+            sync_db_rx,
+            sync_db_tx,
+
             last_poll: Instant::now(),
             state_rx,
             state_tx,
@@ -111,7 +120,24 @@ impl SonixApp {
         };
 
         app.load_view_data();
+        if app.tracks.is_empty() {
+            app.trigger_sync_db();
+        }
         app
+    }
+
+    pub fn trigger_sync_db(&mut self) {
+        if self.is_syncing_db {
+            return;
+        }
+        self.is_syncing_db = true;
+        let client = self.client.clone();
+        let tx = self.sync_db_tx.clone();
+        let db_path = crate::db::LibraryDb::find_db_path();
+        std::thread::spawn(move || {
+            let res = client.download_db(&db_path).is_ok();
+            let _ = tx.send(res);
+        });
     }
 
     pub fn effective_accent_color(&self) -> Color32 {
@@ -188,8 +214,22 @@ impl SonixApp {
 impl eframe::App for SonixApp {
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+
+        // Process database sync completion
+        while let Ok(success) = self.sync_db_rx.try_recv() {
+            self.is_syncing_db = false;
+            if success {
+                self.db = LibraryDb::new();
+                self.load_view_data();
+            }
+        }
+
         // 1. Process incoming state from background thread
+        let mut first_connect = false;
         while let Ok(state) = self.state_rx.try_recv() {
+            if self.current_state.is_none() {
+                first_connect = true;
+            }
             // Update device choices
             if let Some(star) = state.fav_star {
                 self.settings.device_fav_mark = if star { "star".into() } else { "heart".into() };
@@ -208,6 +248,10 @@ impl eframe::App for SonixApp {
 
             self.check_art_download(&state.path);
             self.current_state = Some(state);
+        }
+
+        if first_connect && self.tracks.is_empty() {
+            self.trigger_sync_db();
         }
 
         // 2. Process incoming artwork image
@@ -313,8 +357,9 @@ impl SonixApp {
                     if ui.add(egui::Button::new("🔍 Devices").corner_radius(4.0)).clicked() {
                         self.show_devices = true;
                     }
-                    if ui.add(egui::Button::new("↻ Sync DB").corner_radius(4.0)).clicked() {
-                        self.tracks = self.db.get_all_tracks();
+                    let sync_lbl = if self.is_syncing_db { "↻ Syncing..." } else { "↻ Sync DB" };
+                    if ui.add(egui::Button::new(sync_lbl).corner_radius(4.0)).clicked() {
+                        self.trigger_sync_db();
                     }
                 });
             });
@@ -412,12 +457,13 @@ impl SonixApp {
             ui.label(egui::RichText::new(count_str).color(TEXT_MUTED).size(11.0));
 
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui.add(egui::Button::new("▶  Play All").corner_radius(5.0).fill(accent)).clicked() {
+                ui.spacing_mut().item_spacing = Vec2::new(8.0, 0.0);
+                if header_pill_button(ui, "▶", "Play All", accent, Color32::WHITE).clicked() {
                     if let Some(first) = self.tracks.first() {
                         self.client.command("play_path", &[("path", &first.path)]);
                     }
                 }
-                if ui.add(egui::Button::new("🔀  Shuffle").corner_radius(5.0)).clicked() {
+                if header_pill_button(ui, "⇄", "Shuffle", BG_CARD, TEXT_PRIMARY).clicked() {
                     self.client.command("mode", &[("value", "shuffle")]);
                     if let Some(first) = self.tracks.first() {
                         self.client.command("play_path", &[("path", &first.path)]);
@@ -704,16 +750,11 @@ impl SonixApp {
 
                 // 4. Transport Controls
                 ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing = Vec2::new(6.0, 0.0);
+                    ui.spacing_mut().item_spacing = Vec2::new(10.0, 0.0);
 
                     // Shuffle / Mode
-                    let mode_icon = match self.current_state.as_ref().map(|s| s.mode.as_str()).unwrap_or("normal") {
-                        "repeat" => "🔁",
-                        "repeat_one" => "🔂",
-                        "shuffle" => "🔀",
-                        _ => "➡",
-                    };
-                    if ui.add(egui::Button::new(mode_icon).frame(false)).clicked() {
+                    let mode_str = self.current_state.as_ref().map(|s| s.mode.clone()).unwrap_or_else(|| "normal".to_string());
+                    if playback_mode_button(ui, &mode_str, accent, 32.0).clicked() {
                         self.client.command("mode", &[("value", "next")]);
                     }
 
@@ -736,7 +777,7 @@ impl SonixApp {
                     // Favourite Button
                     let is_fav = self.current_state.as_ref().map(|s| s.favourite).unwrap_or(false);
                     let fav_style = self.settings.effective_fav_mark();
-                    if favourite_button(ui, is_fav, fav_style, accent, 30.0).clicked() {
+                    if favourite_button(ui, is_fav, &fav_style, accent, 32.0).clicked() {
                         if let Some(ref s) = self.current_state {
                             self.client.toggle_favorite(&s.path);
                         }

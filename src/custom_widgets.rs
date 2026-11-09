@@ -208,31 +208,112 @@ pub fn favourite_button(ui: &mut Ui, is_fav: bool, fav_style: &str, accent: Colo
             painter.add(egui::Shape::closed_line(points, Stroke::new(1.8, icon_color)));
         }
     } else {
-        // Vector Heart
-        let s = size * 0.40;
-        let c1 = Pos2::new(center.x - s * 0.45, center.y - s * 0.3);
-        let c2 = Pos2::new(center.x + s * 0.45, center.y - s * 0.3);
-        let r = s * 0.45;
-        let tip = Pos2::new(center.x, center.y + s * 0.65);
+        // Smooth continuous contour vector heart
+        let s = size * 0.38;
+        let tip = Pos2::new(center.x, center.y + s * 0.85);
+        let heart_points = vec![
+            tip,
+            Pos2::new(center.x - s * 0.50, center.y + s * 0.45),
+            Pos2::new(center.x - s * 0.90, center.y + s * 0.05),
+            Pos2::new(center.x - s * 0.85, center.y - s * 0.45),
+            Pos2::new(center.x - s * 0.40, center.y - s * 0.70),
+            Pos2::new(center.x, center.y - s * 0.35),
+            Pos2::new(center.x + s * 0.40, center.y - s * 0.70),
+            Pos2::new(center.x + s * 0.85, center.y - s * 0.45),
+            Pos2::new(center.x + s * 0.90, center.y + s * 0.05),
+            Pos2::new(center.x + s * 0.50, center.y + s * 0.45),
+        ];
 
         if is_fav {
-            painter.circle_filled(c1, r, icon_color);
-            painter.circle_filled(c2, r, icon_color);
-            let tri = vec![
-                Pos2::new(center.x - r * 0.9, center.y - s * 0.1),
-                Pos2::new(center.x + r * 0.9, center.y - s * 0.1),
-                tip,
-            ];
-            painter.add(egui::Shape::convex_polygon(tri, icon_color, Stroke::NONE));
+            painter.add(egui::Shape::convex_polygon(heart_points, icon_color, Stroke::NONE));
         } else {
-            painter.circle_stroke(c1, r, Stroke::new(1.8, icon_color));
-            painter.circle_stroke(c2, r, Stroke::new(1.8, icon_color));
-            painter.line_segment([Pos2::new(center.x - r * 0.9, center.y - s * 0.1), tip], Stroke::new(1.8, icon_color));
-            painter.line_segment([Pos2::new(center.x + r * 0.9, center.y - s * 0.1), tip], Stroke::new(1.8, icon_color));
+            painter.add(egui::Shape::closed_line(heart_points, Stroke::new(1.8, icon_color)));
         }
     }
 
     response
+}
+
+pub fn playback_mode_button(ui: &mut Ui, mode: &str, accent: Color32, size: f32) -> Response {
+    let (rect, response) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
+    let center = rect.center();
+    let is_hovered = response.hovered();
+    let painter = ui.painter();
+
+    if is_hovered {
+        painter.circle_filled(center, size / 2.0, Color32::from_rgb(34, 37, 48));
+    }
+
+    let is_active = mode != "normal";
+    let icon_color = if is_active {
+        accent
+    } else if is_hovered {
+        Color32::WHITE
+    } else {
+        Color32::from_rgb(160, 166, 181)
+    };
+
+    let stroke = Stroke::new(1.8, icon_color);
+
+    match mode {
+        "shuffle" | "shuffle_repeat" => {
+            let l = center.x - 7.0;
+            let r = center.x + 7.0;
+            let t = center.y - 4.5;
+            let b = center.y + 4.5;
+
+            painter.line_segment([Pos2::new(l, t), Pos2::new(r, b)], stroke);
+            painter.line_segment([Pos2::new(r - 3.5, b), Pos2::new(r, b)], stroke);
+            painter.line_segment([Pos2::new(r, b - 3.5), Pos2::new(r, b)], stroke);
+
+            painter.line_segment([Pos2::new(l, b), Pos2::new(r, t)], stroke);
+            painter.line_segment([Pos2::new(r - 3.5, t), Pos2::new(r, t)], stroke);
+            painter.line_segment([Pos2::new(r, t + 3.5), Pos2::new(r, t)], stroke);
+        }
+        "repeat" => {
+            let w = 6.0;
+            let h = 4.5;
+            let rect_box = Rect::from_center_size(center, Vec2::new(w * 2.0, h * 2.0));
+            painter.rect_stroke(rect_box, 3.0, stroke, egui::StrokeKind::Inside);
+            painter.line_segment([Pos2::new(center.x + w - 3.0, center.y - h - 3.0), Pos2::new(center.x + w + 1.0, center.y - h)], stroke);
+        }
+        "repeat_one" => {
+            let w = 6.0;
+            let h = 4.5;
+            let rect_box = Rect::from_center_size(center, Vec2::new(w * 2.0, h * 2.0));
+            painter.rect_stroke(rect_box, 3.0, stroke, egui::StrokeKind::Inside);
+            painter.text(
+                center,
+                egui::Align2::CENTER_CENTER,
+                "1",
+                egui::FontId::proportional(9.0),
+                icon_color,
+            );
+        }
+        _ => {
+            let y = center.y;
+            painter.line_segment([Pos2::new(center.x - 7.0, y), Pos2::new(center.x + 6.0, y)], stroke);
+            painter.line_segment([Pos2::new(center.x + 2.0, y - 4.0), Pos2::new(center.x + 6.0, y)], stroke);
+            painter.line_segment([Pos2::new(center.x + 2.0, y + 4.0), Pos2::new(center.x + 6.0, y)], stroke);
+        }
+    }
+
+    response
+}
+
+pub fn header_pill_button(ui: &mut Ui, icon: &str, label: &str, fill: Color32, text_color: Color32) -> Response {
+    let font_id = egui::FontId::proportional(12.0);
+    let btn = egui::Button::new(
+        egui::RichText::new(format!("{}  {}", icon, label))
+            .font(font_id)
+            .color(text_color)
+            .strong()
+    )
+    .fill(fill)
+    .corner_radius(14.0)
+    .min_size(Vec2::new(0.0, 28.0));
+
+    ui.add(btn)
 }
 
 pub fn volume_speaker_icon(ui: &mut Ui, volume: u8, accent: Color32, size: f32) -> Response {
