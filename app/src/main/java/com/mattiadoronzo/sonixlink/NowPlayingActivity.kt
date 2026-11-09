@@ -388,7 +388,7 @@ class NowPlayingActivity : AppCompatActivity() {
     private fun shownMseb(state: PlayerState): Boolean = Session.heldMseb.resolve(state.mseb)
     private fun shownEq(state: PlayerState): Boolean = Session.heldEq.resolve(state.eq)
     private fun shownPeq(state: PlayerState): Boolean = Session.heldPeq.resolve(state.peq)
-    private fun shownPeqProfile(state: PlayerState): Boolean = Session.heldPeqProfile.resolve(state.peqProfile)
+    private fun shownPeqProfile(state: PlayerState): Int = Session.heldPeqProfile.resolve(state.peqProfile)
 
     private fun updateDspPills(state: PlayerState = Session.state) {
         val msebOn = shownMseb(state)
