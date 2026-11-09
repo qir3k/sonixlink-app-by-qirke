@@ -34,6 +34,11 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_dsp"
+        android:title="@string/action_dsp"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_check_updates"
         android:title="@string/action_check_updates"
         app:showAsAction="never" />

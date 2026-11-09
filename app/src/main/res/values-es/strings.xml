@@ -155,4 +155,22 @@
 	<string name="stream_countries">Explorar por país</string>
 	<string name="stream_genres">Explorar por género</string>
 	<string name="stream_languages">Explorar por idioma</string>
+    <string name="action_dsp">Ecualizador y DSP</string>
+    <string name="dsp_title">Audio y DSP</string>
+    <string name="mseb">MSEB</string>
+    <string name="mseb_title">MSEB (MageSound)</string>
+    <string name="mseb_desc">Motor de afinación acústica</string>
+    <string name="eq">EQ</string>
+    <string name="eq_title">EQ gráfico</string>
+    <string name="eq_desc">Ecualizador de 10 bandas</string>
+    <string name="peq">PEQ</string>
+    <string name="peq_title">EQ paramétrico</string>
+    <string name="peq_desc">Ecualizador paramétrico</string>
+    <string name="peq_profile">Perfil PEQ</string>
+    <string name="peq_profile_1">Perfil 1</string>
+    <string name="peq_profile_2">Perfil 2</string>
+    <string name="cd_mseb">Alternar MSEB</string>
+    <string name="cd_eq">Alternar ecualizador</string>
+    <string name="cd_peq">Alternar ecualizador paramétrico</string>
+    <string name="cd_peq_profile">Cambiar perfil PEQ</string>
 </resources>

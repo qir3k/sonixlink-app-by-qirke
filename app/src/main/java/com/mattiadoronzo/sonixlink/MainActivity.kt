@@ -608,6 +608,11 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
+        R.id.action_dsp -> {
+            showDspDialog()
+            true
+        }
+
         R.id.action_language -> {
             AppearancePreferences.showLanguageDialog(this)
             true
@@ -685,6 +690,37 @@ class MainActivity : AppCompatActivity() {
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         )
         finish()
+    }
+
+    private fun showDspDialog() {
+        val mseb = Session.heldMseb.resolve(Session.state.mseb)
+        val eq = Session.heldEq.resolve(Session.state.eq)
+        val peq = Session.heldPeq.resolve(Session.state.peq)
+        val profile = Session.heldPeqProfile.resolve(Session.state.peqProfile)
+
+        AppearancePreferences.showDspDialog(
+            this,
+            mseb = mseb,
+            eq = eq,
+            peq = peq,
+            peqProfile = profile,
+            onMsebChanged = { enabled ->
+                Session.heldMseb.set(enabled)
+                send { it.setMseb(enabled) }
+            },
+            onEqChanged = { enabled ->
+                Session.heldEq.set(enabled)
+                send { it.setEq(enabled) }
+            },
+            onPeqChanged = { enabled ->
+                Session.heldPeq.set(enabled)
+                send { it.setPeq(enabled) }
+            },
+            onPeqProfileChanged = { p ->
+                Session.heldPeqProfile.set(p)
+                send { it.setPeqProfile(p) }
+            }
+        )
     }
 
     private fun say(message: String) {

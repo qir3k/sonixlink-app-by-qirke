@@ -46,4 +46,34 @@ object Accent {
         }
         button.imageTintList = ColorStateList.valueOf(Session.accent)
     }
+
+    /**
+     * Styles a DSP pill (MSEB, EQ, PEQ, Profile): rounded capsule filled with the
+     * accent colour when active, and subtle transparent grey when inactive.
+     */
+    fun dspPill(view: android.widget.TextView, active: Boolean, enabled: Boolean = true) {
+        val density = view.resources.displayMetrics.density
+        val radius = 16f * density
+        val accent = Session.accent
+        val inactiveBg = 0x24FFFFFF.toInt()
+        val disabledBg = 0x12FFFFFF.toInt()
+        val textSecondary = ContextCompat.getColor(view.context, R.color.text_secondary)
+
+        val bg = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radius
+            if (active) {
+                setColor(accent)
+            } else {
+                setColor(if (enabled) inactiveBg else disabledBg)
+            }
+        }
+        view.background = bg
+        view.setTextColor(
+            if (active) 0xFFFFFFFF.toInt()
+            else if (enabled) 0xDDFFFFFF.toInt()
+            else textSecondary
+        )
+        view.alpha = if (enabled) 1.0f else 0.5f
+    }
 }

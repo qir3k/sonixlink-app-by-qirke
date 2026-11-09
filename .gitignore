@@ -23,3 +23,14 @@ freebuff/
 .kilo/
 kilo/
 repomix-output.xml
+
+# Rust & Desktop Client
+target/
+dist/
+.artwork_cache/
+library.db
+settings.json
+SonixLink.exe
+SonixLink.bat
+__pycache__/
+*.pyc

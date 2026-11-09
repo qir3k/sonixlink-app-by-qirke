@@ -244,6 +244,7 @@ class NowPlayingActivity : AppCompatActivity() {
         views.progressSeek.thumbOffset = dp(9)
         showMode(Session.heldMode.resolve(Session.state.mode))
         showFavourite(shownFavourite(Session.state))
+        updateDspPills(Session.state)
         if (Session.state.podcast) {
             views.speedButton.setTextColor(Accent.onOff(this, Session.state.podcastSpeed != 1000))
         }
@@ -277,6 +278,41 @@ class NowPlayingActivity : AppCompatActivity() {
             startActivity(Intent(this, QueueActivity::class.java))
         }
         views.speedButton.setOnClickListener { pickSpeed() }
+
+        views.msebButton.setOnClickListener {
+            val next = !shownMseb(Session.state)
+            Session.heldMseb.set(next)
+            updateDspPills()
+            send { it.setMseb(next) }
+        }
+        views.eqButton.setOnClickListener {
+            val next = !shownEq(Session.state)
+            Session.heldEq.set(next)
+            updateDspPills()
+            send { it.setEq(next) }
+        }
+        views.peqButton.setOnClickListener {
+            val next = !shownPeq(Session.state)
+            Session.heldPeq.set(next)
+            updateDspPills()
+            send { it.setPeq(next) }
+        }
+        views.peqProfileButton.setOnClickListener {
+            val current = shownPeqProfile(Session.state)
+            val next = if (current == 1) 2 else 1
+            Session.heldPeqProfile.set(next)
+            updateDspPills()
+            send { it.setPeqProfile(next) }
+        }
+
+        val showDspOnLongClick = View.OnLongClickListener {
+            showDspDialog()
+            true
+        }
+        views.msebButton.setOnLongClickListener(showDspOnLongClick)
+        views.eqButton.setOnLongClickListener(showDspOnLongClick)
+        views.peqButton.setOnLongClickListener(showDspOnLongClick)
+        views.peqProfileButton.setOnLongClickListener(showDspOnLongClick)
 
         views.progressSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar, value: Int, fromUser: Boolean) {
@@ -349,6 +385,63 @@ class NowPlayingActivity : AppCompatActivity() {
         return if (path == state.path) starred else state.favourite
     }
 
+    private fun shownMseb(state: PlayerState): Boolean = Session.heldMseb.resolve(state.mseb)
+    private fun shownEq(state: PlayerState): Boolean = Session.heldEq.resolve(state.eq)
+    private fun shownPeq(state: PlayerState): Boolean = Session.heldPeq.resolve(state.peq)
+    private fun shownPeqProfile(state: PlayerState): Boolean = Session.heldPeqProfile.resolve(state.peqProfile)
+
+    private fun updateDspPills(state: PlayerState = Session.state) {
+        val msebOn = shownMseb(state)
+        val eqOn = shownEq(state)
+        val peqOn = shownPeq(state)
+        val profile = shownPeqProfile(state)
+
+        Accent.dspPill(views.msebButton, msebOn)
+        Accent.dspPill(views.eqButton, eqOn)
+        Accent.dspPill(views.peqButton, peqOn)
+
+        val profileText = if (profile == 2) getString(R.string.peq_profile_2) else getString(R.string.peq_profile_1)
+        if (views.peqProfileButton.text != profileText) {
+            views.peqProfileButton.text = profileText
+        }
+        Accent.dspPill(views.peqProfileButton, peqOn, enabled = true)
+    }
+
+    private fun showDspDialog() {
+        val mseb = shownMseb(Session.state)
+        val eq = shownEq(Session.state)
+        val peq = shownPeq(Session.state)
+        val profile = shownPeqProfile(Session.state)
+
+        AppearancePreferences.showDspDialog(
+            this,
+            mseb = mseb,
+            eq = eq,
+            peq = peq,
+            peqProfile = profile,
+            onMsebChanged = { enabled ->
+                Session.heldMseb.set(enabled)
+                updateDspPills()
+                send { it.setMseb(enabled) }
+            },
+            onEqChanged = { enabled ->
+                Session.heldEq.set(enabled)
+                updateDspPills()
+                send { it.setEq(enabled) }
+            },
+            onPeqChanged = { enabled ->
+                Session.heldPeq.set(enabled)
+                updateDspPills()
+                send { it.setPeq(enabled) }
+            },
+            onPeqProfileChanged = { p ->
+                Session.heldPeqProfile.set(p)
+                updateDspPills()
+                send { it.setPeqProfile(p) }
+            }
+        )
+    }
+
     /** The last state read and its uptime, for the clock to run on between reads. */
     private var shownState: PlayerState = PlayerState.EMPTY
     private var shownAt = 0L
@@ -398,6 +491,7 @@ class NowPlayingActivity : AppCompatActivity() {
 
         volume.follow(state.volume)
         showSpeed(state)
+        updateDspPills(state)
 
         // The player's own "4/12": the place in the shuffled order under
         // shuffle, empty for a single track or a book.

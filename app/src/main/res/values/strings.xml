@@ -198,4 +198,22 @@
     <string name="stream_countries">Browse by country</string>
     <string name="stream_genres">Browse by genre</string>
     <string name="stream_languages">Browse by language</string>
+    <string name="action_dsp">Equalizer &amp; DSP</string>
+    <string name="dsp_title">Audio &amp; DSP</string>
+    <string name="mseb">MSEB</string>
+    <string name="mseb_title">MSEB (MageSound)</string>
+    <string name="mseb_desc">Acoustic tuning engine</string>
+    <string name="eq">EQ</string>
+    <string name="eq_title">Graphic EQ</string>
+    <string name="eq_desc">10-band equalizer</string>
+    <string name="peq">PEQ</string>
+    <string name="peq_title">Parametric EQ</string>
+    <string name="peq_desc">Parametric equalizer</string>
+    <string name="peq_profile">PEQ profile</string>
+    <string name="peq_profile_1">Profile 1</string>
+    <string name="peq_profile_2">Profile 2</string>
+    <string name="cd_mseb">Toggle MSEB</string>
+    <string name="cd_eq">Toggle Equalizer</string>
+    <string name="cd_peq">Toggle Parametric Equalizer</string>
+    <string name="cd_peq_profile">Switch PEQ Profile</string>
 </resources>

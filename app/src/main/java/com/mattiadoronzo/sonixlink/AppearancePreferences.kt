@@ -204,6 +204,73 @@ object AppearancePreferences {
             .show()
     }
 
+    /**
+     * Dialog to toggle MSEB, Graphic EQ, Parametric EQ (PEQ), and select between PEQ profile 1 or 2.
+     */
+    fun showDspDialog(
+        activity: AppCompatActivity,
+        mseb: Boolean,
+        eq: Boolean,
+        peq: Boolean,
+        peqProfile: Int,
+        onMsebChanged: (Boolean) -> Unit,
+        onEqChanged: (Boolean) -> Unit,
+        onPeqChanged: (Boolean) -> Unit,
+        onPeqProfileChanged: (Int) -> Unit
+    ) {
+        val view = LayoutInflater.from(activity).inflate(R.layout.dialog_dsp, null)
+        val msebRow = view.findViewById<View>(R.id.msebRow)
+        val msebSwitch = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.msebSwitch)
+        val eqRow = view.findViewById<View>(R.id.eqRow)
+        val eqSwitch = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.eqSwitch)
+        val peqRow = view.findViewById<View>(R.id.peqRow)
+        val peqSwitch = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.peqSwitch)
+        val peqProfileSection = view.findViewById<View>(R.id.peqProfileSection)
+        val peqProfileGroup = view.findViewById<android.widget.RadioGroup>(R.id.peqProfileGroup)
+        val peqProfile1 = view.findViewById<android.widget.RadioButton>(R.id.peqProfile1)
+        val peqProfile2 = view.findViewById<android.widget.RadioButton>(R.id.peqProfile2)
+
+        msebSwitch.isChecked = mseb
+        eqSwitch.isChecked = eq
+        peqSwitch.isChecked = peq
+        if (peqProfile == 2) peqProfile2.isChecked = true else peqProfile1.isChecked = true
+
+        fun updatePeqSection(on: Boolean) {
+            peqProfileSection.alpha = if (on) 1.0f else 0.5f
+        }
+        updatePeqSection(peq)
+
+        msebRow.setOnClickListener {
+            val next = !msebSwitch.isChecked
+            msebSwitch.isChecked = next
+            onMsebChanged(next)
+        }
+
+        eqRow.setOnClickListener {
+            val next = !eqSwitch.isChecked
+            eqSwitch.isChecked = next
+            onEqChanged(next)
+        }
+
+        peqRow.setOnClickListener {
+            val next = !peqSwitch.isChecked
+            peqSwitch.isChecked = next
+            updatePeqSection(next)
+            onPeqChanged(next)
+        }
+
+        peqProfileGroup.setOnCheckedChangeListener { _, checkedId ->
+            val p = if (checkedId == R.id.peqProfile2) 2 else 1
+            onPeqProfileChanged(p)
+        }
+
+        MaterialAlertDialogBuilder(activity)
+            .setTitle(R.string.dsp_title)
+            .setView(view)
+            .setPositiveButton(R.string.crash_dismiss, null)
+            .show()
+    }
+
     fun showTabOrderDialog(activity: AppCompatActivity, onOrderChanged: () -> Unit) {
         val currentOrder = Settings.allTabsInOrder(activity).toMutableList()
         val disabled = Settings.disabledTabs(activity).toMutableSet()

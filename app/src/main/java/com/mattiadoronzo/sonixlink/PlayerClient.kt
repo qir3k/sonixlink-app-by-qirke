@@ -136,6 +136,10 @@ class PlayerClient(val host: String, val port: Int = DEFAULT_PORT) {
             volumeStep = json.optInt("volume_step", -1),
             podcast = json.optBoolean("podcast", false),
             podcastSpeed = json.optInt("podcast_speed", 1000),
+            mseb = json.optBoolean("mseb", false),
+            eq = json.optBoolean("eq", false),
+            peq = json.optBoolean("peq", false),
+            peqProfile = json.optInt("peq_profile", 1),
         )
     }
 
@@ -169,6 +173,23 @@ class PlayerClient(val host: String, val port: Int = DEFAULT_PORT) {
      * is untouched -- the player only stretches episodes.
      */
     fun setSpeed(permille: Int) = command("do" to "speed", "value" to permille.coerceIn(250, 4000).toString())
+
+    /** Turns MSEB on or off. */
+    fun setMseb(enabled: Boolean) = command("do" to "mseb", "value" to if (enabled) "1" else "0")
+    fun toggleMseb() = command("do" to "mseb")
+
+    /** Turns Graphic EQ on or off. */
+    fun setEq(enabled: Boolean) = command("do" to "eq", "value" to if (enabled) "1" else "0")
+    fun toggleEq() = command("do" to "eq")
+
+    /** Turns Parametric EQ (PEQ) on or off. */
+    fun setPeq(enabled: Boolean) = command("do" to "peq", "value" to if (enabled) "1" else "0")
+    fun togglePeq() = command("do" to "peq")
+
+    /** Selects PEQ profile 1 or 2, or cycles to next. */
+    fun setPeqProfile(profile: Int) =
+        command("do" to "peq_profile", "value" to profile.coerceIn(1, 2).toString())
+    fun nextPeqProfile() = command("do" to "peq_profile", "value" to "next")
     /**
      * Starts a track with the list it came from, which becomes the queue.
      * `list` is "all", "album", "artist", "album_artist", "genre",

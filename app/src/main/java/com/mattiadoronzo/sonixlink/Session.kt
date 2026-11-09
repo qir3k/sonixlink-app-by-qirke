@@ -47,6 +47,10 @@ object Session {
      */
     val heldMode = Held<PlayMode>()
     val heldFavourite = Held<Pair<String, Boolean>>()
+    val heldMseb = Held<Boolean>()
+    val heldEq = Held<Boolean>()
+    val heldPeq = Held<Boolean>()
+    val heldPeqProfile = Held<Int>()
 
     /**
      * The accent chosen on the player, as an ARGB colour, used to tint the app.

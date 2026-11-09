@@ -145,6 +145,14 @@ data class PlayerState(
     val podcast: Boolean = false,
     /** The episode speed in thousandths, 1000 being 1.0x. */
     val podcastSpeed: Int = 1000,
+    /** MSEB (MageSound 8-ball) enabled state. */
+    val mseb: Boolean = false,
+    /** 10-band graphic equalizer enabled state. */
+    val eq: Boolean = false,
+    /** Parametric equalizer enabled state. */
+    val peq: Boolean = false,
+    /** Selected PEQ profile (1 or 2). */
+    val peqProfile: Int = 1,
 ) {
     val isPlaying: Boolean get() = playState == 1
     val hasTrack: Boolean get() = title.isNotEmpty() || path.isNotEmpty()

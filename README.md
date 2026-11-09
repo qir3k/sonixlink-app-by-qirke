@@ -1,14 +1,23 @@
 # SonixLink App for TempoTec Variations V1 (by qirke)
 
-An Android app that drives **Sonix Player** on the **TempoTec V1** from your phone,
-and browses its library.
+An Android and Windows 64-bit desktop application that drives **Sonix Player** on the **TempoTec V1** and browses its audio library.
 
 This fork targets the **TempoTec V1 only**. It is built on
 [Jepl4r/sonixlink-app](https://github.com/Jepl4r/sonixlink-app) and adds a
 translated interface, Genres and Years tabs, customisable tabs, accent and
-favourite-icon choices, streaming-service browsing, release updates, and
+favourite-icon choices, streaming-service browsing, hardware DSP controls (MSEB, Graphic EQ, PEQ, and profile switching), a native **Windows 64-bit Desktop version**, release updates, and
 improved artwork and volume-step handling. It lives at
 [qir3k/sonixlink-app-by-qirke](https://github.com/qir3k/sonixlink-app-by-qirke).
+
+---
+
+## Windows 64-bit Desktop App
+
+In addition to the Android client, this repository includes a dedicated **Windows 64-bit Desktop Application** located in [\desktop/\](desktop/README.md):
+- **Widescreen 3-Panel Layout**: Tailored for 16:9 / 16:10 desktop monitors (Navigation & Discovery on the left, sortable Library & File Browser in the center, Now Playing with 260x260 artwork and hardware DSP on the right).
+- **DSP Controls**: Live pills for MSEB, Graphic EQ, PEQ, and PEQ Profile 1/2 switching with dynamic accent lighting.
+- **Standalone Launchers**: Run via \SonixLink.exe\ (native 64-bit GUI launcher without console windows) or \SonixLink.bat\.
+- See [\desktop/README.md\](desktop/README.md) for full details and usage.
 
 ---
 
@@ -114,7 +123,7 @@ says `/api/bye` when it disconnects.
 | Request | Answer |
 | --- | --- |
 | `GET /api/info` | name, model, firmware, serial, track count, whether it is scanning, size, timestamp and fingerprint (`db_hash`, `covers_hash`) of the index and of the thumbnails, accent |
-| `GET /api/state` | what is playing: state, mode, volume, position, duration, title/artist/album/path, format, battery, queue position |
+| `GET /api/state` | what is playing: state, mode, volume, position, duration, title/artist/album/path, format, battery, queue position, DSP states (`mseb`, `eq`, `peq`, `peq_profile`) |
 | `GET /api/db` | the SQLite index, as a file (`503` while the player is scanning) |
 | `GET /api/thumbkeys` | every thumbnail key the player holds, 8 bytes each (the 64-bit key, little-endian) |
 | `GET /api/thumbs?keys=<k>,<k>…` | up to 64 thumbnails: for each, the 16-digit key, width and height (u16 LE), length (u32 LE), RGB565 pixels; 0×0 is "no artwork", unknown keys are left out |
@@ -126,7 +135,7 @@ says `/api/bye` when it disconnects.
 | `GET /api/favourites` | the favourites as they stand right now |
 | `GET /api/history[?limit=<n>]` | the latest `n` (200, at most 1000) entries of what the player has played, oldest first: `{revision, items:[{id, path, title, artist, played_at}]}`; `history_revision` in the state changes when one is added |
 | `GET /api/art?path=[&max=<px>]` | one track's artwork, whole and undecoded; with `max` fitted into that many pixels and sent as a JPEG of a few tens of KB. A fitted cover is made on a thread of its own: until it is ready the answer is `202` and the app asks again a moment later (the player also makes the next track's cover ahead, at the size last asked for) |
-| `POST /api/command?do=…` | `play`, `pause`, `toggle`, `next`, `prev`, `seek&value=<seconds>`, `volume&value=<0-100>`, `mode&value=<normal\|repeat_all\|repeat_one\|shuffle\|shuffle_repeat>`, `play_path&path=<path>[&list=<all\|album\|artist\|album_artist\|genre\|year\|favourites\|playlist\|queue\|folder>&value=<name>]`, `favourite&path=<path>[&value=0\|1]`, `queue_index&value=<n>`, `scan`, `play_all&list=<…\|year\|albums>&value=<name>&how=<sequence\|shuffle\|random>` (the circle-play menu) |
+| `POST /api/command?do=…` | `play`, `pause`, `toggle`, `next`, `prev`, `seek&value=<seconds>`, `volume&value=<0-100>`, `mode&value=<normal\|repeat_all\|repeat_one\|shuffle\|shuffle_repeat>`, `mseb[&value=0\|1]`, `eq[&value=0\|1]`, `peq[&value=0\|1]`, `peq_profile[&value=1\|2\|next]`, `play_path&path=<path>[&list=<all\|album\|artist\|album_artist\|genre\|year\|favourites\|playlist\|queue\|folder>&value=<name>]`, `favourite&path=<path>[&value=0\|1]`, `queue_index&value=<n>`, `scan`, `play_all&list=<…\|year\|albums>&value=<name>&how=<sequence\|shuffle\|random>` (the circle-play menu) |
 | `POST /api/command?do=<queue_next\|favourites_add\|favourites_remove\|playlist_add\|playlist_remove>[&value=<playlist>]` | a selection of tracks, as the player's selection mode: the paths in the body, one a line |
 | `POST /api/command?do=queue_remove&rev=<r>` | the queue entries in the body (indices, one a line) taken out |
 | `POST /api/command?do=queue_move&from=<i>&to=<j>&rev=<r>` | one entry moved, `to` being where it ends up |
