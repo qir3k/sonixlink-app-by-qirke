@@ -186,9 +186,9 @@ jobs:
         run: |
           set -o pipefail
           ./gradlew assembleRelease --build-cache --stacktrace 2>&1 | tee gradle-build.log || {
-            echo "::error::$(grep -E 'FAILURE: Build failed|Exception:|error:|Compilation error' gradle-build.log | head -n 5)"
-            echo "=== BUILD LOG FAILURE TAIL ==="
-            tail -n 80 gradle-build.log
+            grep -A 10 "What went wrong:" gradle-build.log | while IFS= read -r line; do
+              echo "::error::$line"
+            done
             exit 1
           }
 
