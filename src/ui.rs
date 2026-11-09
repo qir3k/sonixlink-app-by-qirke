@@ -21,6 +21,7 @@ pub struct SonixApp {
     pub db: LibraryDb,
     pub current_state: Option<PlayerState>,
     pub current_nav: String,
+    pub drilldown_category: Option<(String, String)>,
     pub search_query: String,
 
     pub tracks: Vec<TrackItem>,
@@ -95,6 +96,7 @@ impl SonixApp {
             db,
             current_state: None,
             current_nav: "tracks".to_string(),
+            drilldown_category: None,
             search_query: String::new(),
 
             tracks: Vec::new(),
@@ -185,6 +187,17 @@ impl SonixApp {
     }
 
     pub fn load_view_data(&mut self) {
+        if let Some((ref cat, ref name)) = self.drilldown_category {
+            match cat.as_str() {
+                "albums" => self.tracks = self.db.get_tracks_by_album(name),
+                "artists" => self.tracks = self.db.get_tracks_by_artist(name),
+                "genres" => self.tracks = self.db.get_tracks_by_genre(name),
+                "years" => self.tracks = self.db.get_tracks_by_year(name),
+                _ => self.tracks = self.db.get_all_tracks(),
+            }
+            return;
+        }
+
         match self.current_nav.as_str() {
             "tracks" => self.tracks = self.db.get_all_tracks(),
             "favourites" => self.tracks = self.db.get_favourites(),
@@ -478,6 +491,8 @@ impl SonixApp {
         };
 
         if ui.add(btn).clicked() {
+            self.drilldown_category = None;
+            self.search_query.clear();
             self.current_nav = key.to_string();
             self.load_view_data();
         }
@@ -487,6 +502,60 @@ impl SonixApp {
     // CENTER PANEL (Main View)
     // -------------------------------------------------------------------------
     fn render_center_panel(&mut self, ui: &mut Ui, accent: Color32) {
+        // Drill-down header if viewing songs for a specific Album, Artist, Genre, or Year
+        if let Some((ref cat, ref name)) = self.drilldown_category.clone() {
+            let mut back_clicked = false;
+            let cat_label = match cat.as_str() {
+                "albums" => "Albums",
+                "artists" => "Artists",
+                "genres" => "Genres",
+                "years" => "Years",
+                _ => "Library",
+            };
+
+            ui.horizontal(|ui| {
+                if ui.add(egui::Button::new(format!("‹ Back to {}", cat_label)).corner_radius(4.0)).clicked() {
+                    back_clicked = true;
+                }
+                ui.add_space(6.0);
+                ui.label(egui::RichText::new(name).color(TEXT_PRIMARY).size(16.0).strong());
+                ui.label(egui::RichText::new(format!("{} tracks", self.tracks.len())).color(TEXT_MUTED).size(11.0));
+
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    ui.spacing_mut().item_spacing = Vec2::new(8.0, 0.0);
+                    if header_pill_button(ui, "▶", "Play All", true, accent).clicked() {
+                        if let Some(first) = self.tracks.first() {
+                            self.client.command("play_path", &[("path", &first.path)]);
+                        }
+                    }
+                    if header_pill_button(ui, "⇄", "Shuffle", false, accent).clicked() {
+                        self.client.command("mode", &[("value", "shuffle")]);
+                        if let Some(first) = self.tracks.first() {
+                            self.client.command("play_path", &[("path", &first.path)]);
+                        }
+                    }
+                });
+            });
+
+            if back_clicked {
+                self.drilldown_category = None;
+                self.load_view_data();
+                return;
+            }
+
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.search_query)
+                        .hint_text("Search in category...")
+                        .desired_width(ui.available_width() - 8.0)
+                );
+            });
+            ui.add_space(10.0);
+            self.render_tracks_table(ui, accent);
+            return;
+        }
+
         // 1. Header Bar
         ui.horizontal(|ui| {
             let title = match self.current_nav.as_str() {
@@ -526,46 +595,6 @@ impl SonixApp {
                 }
             });
         });
-
-        // Optional Update Notification Banner
-        let update_opt = self.update_info.clone();
-        if let Some(update) = update_opt {
-            let mut dismiss_clicked = false;
-            let mut install_url = None;
-            let is_updating = self.is_downloading_update;
-
-            ui.add_space(8.0);
-            Frame::new()
-                .fill(BG_CARD)
-                .stroke(Stroke::new(1.0, accent))
-                .corner_radius(6.0)
-                .inner_margin(Vec2::new(12.0, 7.0))
-                .show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.label(egui::RichText::new(format!("SonixLink {} is available", update.tag)).color(TEXT_PRIMARY).size(11.5).strong());
-                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            ui.spacing_mut().item_spacing = Vec2::new(6.0, 0.0);
-                            if ui.add(egui::Button::new("Dismiss").corner_radius(4.0)).clicked() {
-                                dismiss_clicked = true;
-                            }
-                            if is_updating {
-                                ui.label(egui::RichText::new("Updating...").color(accent).size(11.0));
-                            } else {
-                                if ui.add(egui::Button::new("Update Now").fill(accent).corner_radius(4.0)).clicked() {
-                                    install_url = Some(update.exe_url.clone());
-                                }
-                            }
-                        });
-                    });
-                });
-
-            if dismiss_clicked {
-                self.update_info = None;
-            }
-            if let Some(url) = install_url {
-                self.trigger_install_update(url);
-            }
-        }
 
         // 2. Minimalist Search Field
         ui.add_space(8.0);
@@ -655,20 +684,64 @@ impl SonixApp {
         });
     }
 
-    fn render_simple_table(&mut self, ui: &mut Ui, _accent: Color32) {
+    fn render_simple_table(&mut self, ui: &mut Ui, accent: Color32) {
+        let mut clicked_item: Option<String> = None;
+        let query = self.search_query.to_lowercase();
+
         ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             for (idx, item) in self.simple_items.iter().enumerate() {
+                if !query.is_empty() && !item.name.to_lowercase().contains(&query) {
+                    continue;
+                }
                 let fill = if idx % 2 == 0 { ROW_EVEN } else { ROW_ODD };
-                Frame::new().fill(fill).corner_radius(4.0).inner_margin(8.0).show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.label(egui::RichText::new(&item.name).size(12.5).strong().color(TEXT_PRIMARY));
-                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            ui.label(egui::RichText::new(format!("{} tracks", item.track_count)).size(11.0).color(TEXT_MUTED));
-                        });
-                    });
-                });
+                let (rect, response) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 38.0), egui::Sense::click());
+                let is_hovered = response.hovered();
+                let painter = ui.painter();
+
+                let bg_color = if is_hovered {
+                    Color32::from_rgb(32, 35, 46)
+                } else {
+                    fill
+                };
+
+                painter.rect_filled(rect, 4.0, bg_color);
+                if is_hovered {
+                    painter.rect_stroke(rect, 4.0, Stroke::new(1.0, Color32::from_rgb(52, 58, 76)), egui::StrokeKind::Inside);
+                }
+
+                // Left: Name
+                let name_color = if is_hovered { accent } else { TEXT_PRIMARY };
+                let text_pos = egui::Pos2::new(rect.min.x + 12.0, rect.center().y);
+                painter.text(
+                    text_pos,
+                    egui::Align2::LEFT_CENTER,
+                    &item.name,
+                    egui::FontId::proportional(12.5),
+                    name_color,
+                );
+
+                // Right: Track count and chevron
+                let count_str = format!("{} tracks   ›", item.track_count);
+                let count_pos = egui::Pos2::new(rect.max.x - 12.0, rect.center().y);
+                painter.text(
+                    count_pos,
+                    egui::Align2::RIGHT_CENTER,
+                    count_str,
+                    egui::FontId::proportional(11.0),
+                    TEXT_MUTED,
+                );
+
+                if response.clicked() {
+                    clicked_item = Some(item.name.clone());
+                }
             }
         });
+
+        if let Some(name) = clicked_item {
+            self.drilldown_category = Some((self.current_nav.clone(), name));
+            self.search_query.clear();
+            self.load_view_data();
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -837,7 +910,7 @@ impl SonixApp {
                 ui.add_space(12.0);
 
                 // 4. Vector Transport Controls (All centered vertically)
-                ui.horizontal(|ui| {
+                ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                     ui.spacing_mut().item_spacing = Vec2::new(10.0, 0.0);
 
                     // Mode Toggle (Shuffle / Repeat / Normal)
@@ -854,6 +927,9 @@ impl SonixApp {
                     // Large Circular Play / Pause Vector Button
                     let is_playing = self.current_state.as_ref().map(|s| s.is_playing()).unwrap_or(false);
                     if play_pause_button(ui, is_playing, accent, 46.0).clicked() {
+                        if let Some(ref mut s) = self.current_state {
+                            s.state = if s.state == 1 { 2 } else { 1 };
+                        }
                         self.client.toggle_play();
                     }
 
@@ -866,7 +942,8 @@ impl SonixApp {
                     let is_fav = self.current_state.as_ref().map(|s| s.favourite).unwrap_or(false);
                     let fav_style = self.settings.effective_fav_mark();
                     if favourite_button(ui, is_fav, &fav_style, accent, 32.0).clicked() {
-                        if let Some(ref s) = self.current_state {
+                        if let Some(ref mut s) = self.current_state {
+                            s.favourite = !is_fav;
                             self.client.toggle_favorite(&s.path);
                         }
                     }
@@ -895,23 +972,36 @@ impl SonixApp {
                             ui.spacing_mut().item_spacing = Vec2::new(4.0, 0.0);
                             let mseb_on = self.current_state.as_ref().map(|s| s.mseb).unwrap_or(false);
                             if dsp_pill_button(ui, "MSEB", mseb_on, accent, 48.0, 22.0).clicked() {
+                                if let Some(ref mut s) = self.current_state {
+                                    s.mseb = !mseb_on;
+                                }
                                 self.client.set_mseb(!mseb_on);
                             }
 
                             let eq_on = self.current_state.as_ref().map(|s| s.eq).unwrap_or(false);
                             if dsp_pill_button(ui, "EQ", eq_on, accent, 40.0, 22.0).clicked() {
+                                if let Some(ref mut s) = self.current_state {
+                                    s.eq = !eq_on;
+                                }
                                 self.client.set_eq(!eq_on);
                             }
 
                             let peq_on = self.current_state.as_ref().map(|s| s.peq).unwrap_or(false);
                             if dsp_pill_button(ui, "PEQ", peq_on, accent, 44.0, 22.0).clicked() {
+                                if let Some(ref mut s) = self.current_state {
+                                    s.peq = !peq_on;
+                                }
                                 self.client.set_peq(!peq_on);
                             }
 
                             let prof = self.current_state.as_ref().map(|s| s.peq_profile).unwrap_or(1);
                             let p_label = format!("P{}", prof);
-                            if dsp_pill_button(ui, &p_label, true, accent, 38.0, 22.0).clicked() {
+                            // Only illuminated when peq_on is true!
+                            if dsp_pill_button(ui, &p_label, peq_on, accent, 38.0, 22.0).clicked() {
                                 let next_p = if prof == 1 { 2 } else { 1 };
+                                if let Some(ref mut s) = self.current_state {
+                                    s.peq_profile = next_p;
+                                }
                                 self.client.set_peq_profile(next_p);
                             }
                         });
@@ -1046,11 +1136,13 @@ impl SonixApp {
                         }
 
                         if let Some(ref update) = update_opt {
-                            if is_downloading {
-                                ui.label(egui::RichText::new("Updating...").color(accent).size(11.0));
-                            } else {
-                                if ui.add(egui::Button::new(format!("Install {}", update.tag)).fill(accent).corner_radius(4.0)).clicked() {
-                                    to_install = Some(update.exe_url.clone());
+                            if update.is_newer {
+                                if is_downloading {
+                                    ui.label(egui::RichText::new("Updating...").color(accent).size(11.0));
+                                } else {
+                                    if ui.add(egui::Button::new(format!("Install {}", update.tag)).fill(accent).corner_radius(4.0)).clicked() {
+                                        to_install = Some(update.exe_url.clone());
+                                    }
                                 }
                             }
                         }

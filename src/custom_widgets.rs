@@ -113,14 +113,16 @@ pub fn play_pause_button(ui: &mut Ui, is_playing: bool, accent: Color32, diamete
 }
 
 pub fn prev_track_button(ui: &mut Ui, size: f32) -> Response {
-    let (rect, response) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(size, 46.0), Sense::click());
     let center = rect.center();
     let is_hovered = response.hovered();
-    let color = if is_hovered { Color32::WHITE } else { Color32::from_rgb(180, 185, 195) };
+    let is_down = response.is_pointer_button_down_on();
+    let color = if is_hovered || is_down { Color32::WHITE } else { Color32::from_rgb(180, 185, 195) };
     let painter = ui.painter();
 
     if is_hovered {
-        painter.circle_filled(center, size / 2.0, Color32::from_rgb(32, 35, 45));
+        let hr = if is_down { size / 2.0 - 1.5 } else { size / 2.0 };
+        painter.circle_filled(center, hr, Color32::from_rgb(32, 35, 45));
     }
 
     // Stop Bar
@@ -145,14 +147,16 @@ pub fn prev_track_button(ui: &mut Ui, size: f32) -> Response {
 }
 
 pub fn next_track_button(ui: &mut Ui, size: f32) -> Response {
-    let (rect, response) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(size, 46.0), Sense::click());
     let center = rect.center();
     let is_hovered = response.hovered();
-    let color = if is_hovered { Color32::WHITE } else { Color32::from_rgb(180, 185, 195) };
+    let is_down = response.is_pointer_button_down_on();
+    let color = if is_hovered || is_down { Color32::WHITE } else { Color32::from_rgb(180, 185, 195) };
     let painter = ui.painter();
 
     if is_hovered {
-        painter.circle_filled(center, size / 2.0, Color32::from_rgb(32, 35, 45));
+        let hr = if is_down { size / 2.0 - 1.5 } else { size / 2.0 };
+        painter.circle_filled(center, hr, Color32::from_rgb(32, 35, 45));
     }
 
     // Right Triangles
@@ -177,26 +181,28 @@ pub fn next_track_button(ui: &mut Ui, size: f32) -> Response {
 }
 
 pub fn favourite_button(ui: &mut Ui, is_fav: bool, fav_style: &str, accent: Color32, size: f32) -> Response {
-    let (rect, response) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(size, 46.0), Sense::click());
     let center = rect.center();
     let is_hovered = response.hovered();
+    let is_down = response.is_pointer_button_down_on();
     let painter = ui.painter();
 
     let icon_color = if is_fav {
         accent
-    } else if is_hovered {
+    } else if is_hovered || is_down {
         Color32::WHITE
     } else {
         Color32::from_rgb(150, 155, 170)
     };
 
     if is_hovered {
-        painter.circle_filled(center, size / 2.0, Color32::from_rgb(32, 35, 45));
+        let hr = if is_down { size / 2.0 - 1.5 } else { size / 2.0 };
+        painter.circle_filled(center, hr, Color32::from_rgb(32, 35, 45));
     }
 
     if fav_style == "star" {
         // 5-Point Vector Star
-        let outer_r = size * 0.40;
+        let outer_r = size * 0.38;
         let inner_r = outer_r * 0.42;
         let mut points = Vec::with_capacity(10);
         for i in 0..10 {
@@ -210,21 +216,64 @@ pub fn favourite_button(ui: &mut Ui, is_fav: bool, fav_style: &str, accent: Colo
             painter.add(egui::Shape::closed_line(points, Stroke::new(1.6, icon_color)));
         }
     } else {
-        // Mathematically flawless parametric cardioid heart (60 points)
-        let mut points = Vec::with_capacity(64);
-        let scale = size * 0.024;
-        for i in 0..60 {
-            let t = (i as f32) * std::f32::consts::TAU / 60.0;
-            let sin_t = t.sin();
-            let x = 16.0 * sin_t * sin_t * sin_t;
-            let y = -(13.0 * t.cos() - 5.0 * (2.0 * t).cos() - 2.0 * (3.0 * t).cos() - (4.0 * t).cos());
-            points.push(Pos2::new(center.x + x * scale, center.y + (y + 1.2) * scale));
+        // Smooth symmetrical vector heart with zero triangulation glitches
+        // Key anchor points
+        let top_cleft = Pos2::new(center.x, center.y - 2.8);
+        let bot_tip = Pos2::new(center.x, center.y + 7.5);
+
+        // Right lobe: 2 cubic bezier segments
+        let mut right_curve = Vec::with_capacity(18);
+        right_curve.push(top_cleft);
+        // Segment 1: top cleft to right outer peak
+        let p0 = top_cleft;
+        let p1 = Pos2::new(center.x + 2.4, center.y - 7.0);
+        let p2 = Pos2::new(center.x + 7.5, center.y - 5.5);
+        let p3 = Pos2::new(center.x + 7.6, center.y - 1.5);
+        for i in 1..=8 {
+            let t = i as f32 / 8.0;
+            let it = 1.0 - t;
+            let pt = Pos2::new(
+                it * it * it * p0.x + 3.0 * it * it * t * p1.x + 3.0 * it * t * t * p2.x + t * t * t * p3.x,
+                it * it * it * p0.y + 3.0 * it * it * t * p1.y + 3.0 * it * t * t * p2.y + t * t * t * p3.y,
+            );
+            right_curve.push(pt);
+        }
+        // Segment 2: right outer peak to bottom tip
+        let q0 = p3;
+        let q1 = Pos2::new(center.x + 7.6, center.y + 2.5);
+        let q2 = Pos2::new(center.x + 3.8, center.y + 5.2);
+        let q3 = bot_tip;
+        for i in 1..=8 {
+            let t = i as f32 / 8.0;
+            let it = 1.0 - t;
+            let pt = Pos2::new(
+                it * it * it * q0.x + 3.0 * it * it * t * q1.x + 3.0 * it * t * t * q2.x + t * t * t * q3.x,
+                it * it * it * q0.y + 3.0 * it * it * t * q1.y + 3.0 * it * t * t * q2.y + t * t * t * q3.y,
+            );
+            right_curve.push(pt);
         }
 
+        // Left lobe is the exact mirror across center.x
+        let left_curve: Vec<Pos2> = right_curve
+            .iter()
+            .rev()
+            .map(|pt| Pos2::new(center.x - (pt.x - center.x), pt.y))
+            .collect();
+
         if is_fav {
-            painter.add(egui::Shape::convex_polygon(points, icon_color, Stroke::NONE));
+            // Split into two strictly-convex halves down center.x to guarantee clean filled triangulation
+            let mut right_half = right_curve.clone();
+            right_half.push(top_cleft);
+            painter.add(egui::Shape::convex_polygon(right_half, icon_color, Stroke::NONE));
+
+            let mut left_half = left_curve.clone();
+            left_half.push(bot_tip);
+            painter.add(egui::Shape::convex_polygon(left_half, icon_color, Stroke::NONE));
         } else {
-            painter.add(egui::Shape::closed_line(points, Stroke::new(1.6, icon_color)));
+            // Full perimeter outline loop
+            let mut outline = right_curve;
+            outline.extend(left_curve.into_iter().skip(1));
+            painter.add(egui::Shape::closed_line(outline, Stroke::new(1.6, icon_color)));
         }
     }
 
@@ -232,19 +281,21 @@ pub fn favourite_button(ui: &mut Ui, is_fav: bool, fav_style: &str, accent: Colo
 }
 
 pub fn playback_mode_button(ui: &mut Ui, mode: &str, accent: Color32, size: f32) -> Response {
-    let (rect, response) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(size, 46.0), Sense::click());
     let center = rect.center();
     let is_hovered = response.hovered();
+    let is_down = response.is_pointer_button_down_on();
     let painter = ui.painter();
 
     if is_hovered {
-        painter.circle_filled(center, size / 2.0, Color32::from_rgb(32, 35, 45));
+        let hr = if is_down { size / 2.0 - 1.5 } else { size / 2.0 };
+        painter.circle_filled(center, hr, Color32::from_rgb(32, 35, 45));
     }
 
     let is_active = mode != "normal";
     let icon_color = if is_active {
         accent
-    } else if is_hovered {
+    } else if is_hovered || is_down {
         Color32::WHITE
     } else {
         Color32::from_rgb(150, 155, 170)
@@ -254,18 +305,57 @@ pub fn playback_mode_button(ui: &mut Ui, mode: &str, accent: Color32, size: f32)
 
     match mode {
         "shuffle" | "shuffle_repeat" => {
-            let l = center.x - 7.0;
-            let r = center.x + 7.0;
-            let t = center.y - 4.5;
-            let b = center.y + 4.5;
+            // Authentic curved crossing arrows (Spotify / Apple Music style)
+            let x_left = center.x - 7.5;
+            let x_right = center.x + 7.5;
+            let y_top = center.y - 4.5;
+            let y_bot = center.y + 4.5;
 
-            painter.line_segment([Pos2::new(l, t), Pos2::new(r, b)], stroke);
-            painter.line_segment([Pos2::new(r - 4.0, b), Pos2::new(r, b)], stroke);
-            painter.line_segment([Pos2::new(r, b - 4.0), Pos2::new(r, b)], stroke);
+            // Arrow 1: Top-left to Bottom-right S-curve
+            let mut pts_top_down = Vec::with_capacity(12);
+            pts_top_down.push(Pos2::new(x_left, y_top));
+            pts_top_down.push(Pos2::new(center.x - 3.5, y_top));
+            let p0 = Pos2::new(center.x - 3.5, y_top);
+            let p1 = Pos2::new(center.x - 0.8, y_top);
+            let p2 = Pos2::new(center.x + 0.8, y_bot);
+            let p3 = Pos2::new(center.x + 3.5, y_bot);
+            for i in 1..=6 {
+                let t = i as f32 / 6.0;
+                let it = 1.0 - t;
+                pts_top_down.push(Pos2::new(
+                    it * it * it * p0.x + 3.0 * it * it * t * p1.x + 3.0 * it * t * t * p2.x + t * t * t * p3.x,
+                    it * it * it * p0.y + 3.0 * it * it * t * p1.y + 3.0 * it * t * t * p2.y + t * t * t * p3.y,
+                ));
+            }
+            pts_top_down.push(Pos2::new(x_right, y_bot));
+            painter.add(egui::Shape::line(pts_top_down, stroke));
 
-            painter.line_segment([Pos2::new(l, b), Pos2::new(r, t)], stroke);
-            painter.line_segment([Pos2::new(r - 4.0, t), Pos2::new(r, t)], stroke);
-            painter.line_segment([Pos2::new(r, t + 4.0), Pos2::new(r, t)], stroke);
+            // Arrowhead at bottom-right pointing right
+            painter.line_segment([Pos2::new(x_right - 3.2, y_bot - 2.8), Pos2::new(x_right, y_bot)], stroke);
+            painter.line_segment([Pos2::new(x_right - 3.2, y_bot + 2.8), Pos2::new(x_right, y_bot)], stroke);
+
+            // Arrow 2: Bottom-left to Top-right S-curve
+            let mut pts_bot_up = Vec::with_capacity(12);
+            pts_bot_up.push(Pos2::new(x_left, y_bot));
+            pts_bot_up.push(Pos2::new(center.x - 3.5, y_bot));
+            let q0 = Pos2::new(center.x - 3.5, y_bot);
+            let q1 = Pos2::new(center.x - 0.8, y_bot);
+            let q2 = Pos2::new(center.x + 0.8, y_top);
+            let q3 = Pos2::new(center.x + 3.5, y_top);
+            for i in 1..=6 {
+                let t = i as f32 / 6.0;
+                let it = 1.0 - t;
+                pts_bot_up.push(Pos2::new(
+                    it * it * it * q0.x + 3.0 * it * it * t * q1.x + 3.0 * it * t * t * q2.x + t * t * t * q3.x,
+                    it * it * it * q0.y + 3.0 * it * it * t * q1.y + 3.0 * it * t * t * q2.y + t * t * t * q3.y,
+                ));
+            }
+            pts_bot_up.push(Pos2::new(x_right, y_top));
+            painter.add(egui::Shape::line(pts_bot_up, stroke));
+
+            // Arrowhead at top-right pointing right
+            painter.line_segment([Pos2::new(x_right - 3.2, y_top - 2.8), Pos2::new(x_right, y_top)], stroke);
+            painter.line_segment([Pos2::new(x_right - 3.2, y_top + 2.8), Pos2::new(x_right, y_top)], stroke);
         }
         "repeat" => {
             let w = 6.0;
@@ -387,10 +477,24 @@ pub fn dsp_pill_button(
     let painter = ui.painter();
 
     let (bg, border_color, text_color) = if is_active {
+        if is_down {
+            (
+                Color32::from_rgb(
+                    ((accent.r() as f32) * 0.82) as u8,
+                    ((accent.g() as f32) * 0.82) as u8,
+                    ((accent.b() as f32) * 0.82) as u8,
+                ),
+                accent,
+                Color32::WHITE,
+            )
+        } else {
+            (accent, accent, Color32::WHITE)
+        }
+    } else if is_down {
         (
-            accent,
-            accent,
-            Color32::WHITE,
+            Color32::from_rgb(12, 13, 17),
+            Color32::from_rgb(45, 50, 65),
+            Color32::from_rgb(180, 185, 200),
         )
     } else if is_hovered {
         (
@@ -406,12 +510,13 @@ pub fn dsp_pill_button(
         )
     };
 
-    let r = 5.0 - if is_down { 0.5 } else { 0.0 };
-    painter.rect_filled(rect, r, bg);
-    painter.rect_stroke(rect, r, Stroke::new(1.0, border_color), egui::StrokeKind::Inside);
+    let draw_rect = if is_down { rect.shrink(1.2) } else { rect };
+    let r = 5.0;
+    painter.rect_filled(draw_rect, r, bg);
+    painter.rect_stroke(draw_rect, r, Stroke::new(1.0, border_color), egui::StrokeKind::Inside);
 
     painter.text(
-        rect.center(),
+        draw_rect.center(),
         egui::Align2::CENTER_CENTER,
         label,
         egui::FontId::proportional(10.5),

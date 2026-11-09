@@ -236,6 +236,8 @@ jobs:
           TAG: ${{ needs.version.outputs.new_tag }}
         shell: powershell
         run: |
+          $cleanTag = "${env:TAG}".TrimStart('v')
+          (Get-Content Cargo.toml) -replace '^version\s*=\s*".*"', "version = `"$cleanTag`"" | Set-Content Cargo.toml
           cargo build --release
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item "target\release\sonixlink.exe" "dist\SonixLink-${env:TAG}-windows-x64.exe"

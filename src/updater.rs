@@ -93,12 +93,24 @@ pub fn check_for_updates() -> Result<ReleaseInfo, String> {
 
 pub fn download_and_install_update(exe_url: &str) -> Result<(), String> {
     let current_exe = std::env::current_exe().map_err(|e| format!("Cannot locate current exe: {}", e))?;
-    let target_dir = current_exe.parent().unwrap_or_else(|| std::path::Path::new("."));
-    let new_exe = target_dir.join("SonixLink_new.exe");
+    let temp_dir = std::env::temp_dir();
+    let new_exe = temp_dir.join("SonixLink_update.exe");
+
+    // Remove any previous leftover file in %TEMP%
+    let _ = std::fs::remove_file(&new_exe);
 
     // 1. Download new executable using curl
     let status = Command::new("curl.exe")
-        .args(["-L", "-o", new_exe.to_str().unwrap(), exe_url])
+        .args([
+            "-L",
+            "-s",
+            "-f",
+            "-H",
+            "User-Agent: SonixLink-Desktop-Updater",
+            "-o",
+            new_exe.to_str().unwrap(),
+            exe_url,
+        ])
         .creation_flags(CREATE_NO_WINDOW)
         .status()
         .map_err(|e| format!("Failed to download update: {}", e))?;
@@ -107,21 +119,39 @@ pub fn download_and_install_update(exe_url: &str) -> Result<(), String> {
         return Err("Update download failed".to_string());
     }
 
-    let cur_str = current_exe.to_str().unwrap();
-    let new_str = new_exe.to_str().unwrap();
+    if let Ok(meta) = new_exe.metadata() {
+        if meta.len() < 100_000 {
+            let _ = std::fs::remove_file(&new_exe);
+            return Err("Downloaded update file is invalid or too small".to_string());
+        }
+    }
 
-    // 2. Spawn delayed replacement batch script and exit
-    let batch_cmd = format!(
-        "timeout /t 1 /nobreak > NUL & move /y \"{}\" \"{}\" & start \"\" \"{}\"",
-        new_str, cur_str, cur_str
+    let cur_str = current_exe.to_string_lossy().to_string();
+    let new_str = new_exe.to_string_lossy().to_string();
+
+    // 2. Spawn detached replacement script using PowerShell with retry loop
+    let ps_script = format!(
+        "Start-Sleep -Milliseconds 600; \
+         for ($i = 0; $i -lt 30; $i++) {{ \
+             try {{ \
+                 Move-Item -Force -LiteralPath '{}' -Destination '{}' -ErrorAction Stop; \
+                 Start-Process -FilePath '{}'; \
+                 exit 0; \
+             }} catch {{ \
+                 Start-Sleep -Milliseconds 250; \
+             }} \
+         }}",
+        new_str.replace('\'', "''"),
+        cur_str.replace('\'', "''"),
+        cur_str.replace('\'', "''"),
     );
 
-    Command::new("cmd.exe")
-        .args(["/C", &batch_cmd])
+    Command::new("powershell.exe")
+        .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", &ps_script])
         .creation_flags(CREATE_NO_WINDOW)
         .spawn()
         .map_err(|e| format!("Failed to spawn updater process: {}", e))?;
 
-    // 3. Exit current process to free the file lock
+    // 3. Exit current process to immediately free file locks
     std::process::exit(0);
 }

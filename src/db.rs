@@ -145,11 +145,59 @@ impl LibraryDb {
     }
 
     pub fn get_all_tracks(&self) -> Vec<TrackItem> {
-        let query = "SELECT title, artist, album, path, \
+        let query = "SELECT name AS title, artist, album, path, \
                      (CASE WHEN end_time > begin_time THEN (end_time - begin_time) / 1000 ELSE 0 END) AS duration, \
                      ck_id AS track_num \
-                     FROM MEDIA_TABLE WHERE path <> '' ORDER BY sortkey, title LIMIT 5000";
+                     FROM MEDIA_TABLE WHERE path <> '' ORDER BY sortkey, name LIMIT 5000";
         self.query_tracks(query)
+    }
+
+    pub fn get_tracks_by_album(&self, album: &str) -> Vec<TrackItem> {
+        let safe_album = album.replace('\'', "''");
+        let query = format!(
+            "SELECT name AS title, artist, album, path, \
+             (CASE WHEN end_time > begin_time THEN (end_time - begin_time) / 1000 ELSE 0 END) AS duration, \
+             ck_id AS track_num \
+             FROM MEDIA_TABLE WHERE path <> '' AND album = '{}' ORDER BY ck_id, sortkey, name LIMIT 2000",
+            safe_album
+        );
+        self.query_tracks(&query)
+    }
+
+    pub fn get_tracks_by_artist(&self, artist: &str) -> Vec<TrackItem> {
+        let safe_artist = artist.replace('\'', "''");
+        let query = format!(
+            "SELECT name AS title, artist, album, path, \
+             (CASE WHEN end_time > begin_time THEN (end_time - begin_time) / 1000 ELSE 0 END) AS duration, \
+             ck_id AS track_num \
+             FROM MEDIA_TABLE WHERE path <> '' AND artist = '{}' ORDER BY album, ck_id, sortkey, name LIMIT 2000",
+            safe_artist
+        );
+        self.query_tracks(&query)
+    }
+
+    pub fn get_tracks_by_genre(&self, genre: &str) -> Vec<TrackItem> {
+        let safe_genre = genre.replace('\'', "''");
+        let query = format!(
+            "SELECT name AS title, artist, album, path, \
+             (CASE WHEN end_time > begin_time THEN (end_time - begin_time) / 1000 ELSE 0 END) AS duration, \
+             ck_id AS track_num \
+             FROM MEDIA_TABLE WHERE path <> '' AND genre = '{}' ORDER BY artist, album, name LIMIT 2000",
+            safe_genre
+        );
+        self.query_tracks(&query)
+    }
+
+    pub fn get_tracks_by_year(&self, year: &str) -> Vec<TrackItem> {
+        let safe_year = year.replace('\'', "''");
+        let query = format!(
+            "SELECT name AS title, artist, album, path, \
+             (CASE WHEN end_time > begin_time THEN (end_time - begin_time) / 1000 ELSE 0 END) AS duration, \
+             ck_id AS track_num \
+             FROM MEDIA_TABLE WHERE path <> '' AND year = '{}' ORDER BY artist, album, name LIMIT 2000",
+            safe_year
+        );
+        self.query_tracks(&query)
     }
 
     pub fn get_favourites(&self) -> Vec<TrackItem> {
