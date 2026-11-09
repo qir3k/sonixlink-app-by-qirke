@@ -387,6 +387,7 @@ class NowPlayingActivity : AppCompatActivity() {
 
         views.playButton.setImageResource(if (state.isPlaying) R.drawable.ic_pause else R.drawable.ic_play)
         showMode(Session.heldMode.resolve(state.mode))
+        views.modeButton.visibility = if (state.podcast) View.INVISIBLE else View.VISIBLE
         showFavourite(shownFavourite(state))
 
         showProgress()
