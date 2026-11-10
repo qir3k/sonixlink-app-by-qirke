@@ -3017,7 +3017,7 @@ dependencies = [
 
 [[package]]
 name = "sonixlink"
-version = "1.3.10"
+version = "1.3.11"
 dependencies = [
  "eframe",
  "image",

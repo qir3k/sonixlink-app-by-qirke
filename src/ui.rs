@@ -15,28 +15,6 @@ pub struct StreamPage {
     pub title: String,
 }
 
-pub fn col_resize_separator(ui: &mut Ui, width: &mut f32) {
-    let (rect, resp) = ui.allocate_exact_size(Vec2::new(8.0, 16.0), egui::Sense::drag());
-    if resp.hovered() || resp.dragged() {
-        ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal);
-    }
-    if resp.dragged() {
-        *width = (*width - resp.drag_delta().x).clamp(70.0, 450.0);
-    }
-    let center_x = rect.center().x;
-    let stroke_color = if resp.hovered() || resp.dragged() {
-        Color32::from_rgb(220, 220, 225)
-    } else {
-        Color32::from_rgb(38, 40, 48)
-    };
-    ui.painter().line_segment(
-        [
-            egui::pos2(center_x, rect.top() + 2.0),
-            egui::pos2(center_x, rect.bottom() - 2.0),
-        ],
-        Stroke::new(1.0, stroke_color),
-    );
-}
 
 pub struct SonixApp {
     pub client: SonixClient,
@@ -369,16 +347,20 @@ impl eframe::App for SonixApp {
 
         // 3. Three-Panel Layout: Pure Dark Monochrome with Accent Highlight
         egui::Panel::left("left_sidebar")
-            .exact_size(220.0)
-            .resizable(false)
+            .default_size(220.0)
+            .min_size(170.0)
+            .max_size(360.0)
+            .resizable(true)
             .frame(Frame::new().fill(BG_PANEL).inner_margin(12.0))
             .show(ui, |ui| {
                 self.render_left_sidebar(ui, accent);
             });
 
         egui::Panel::right("right_panel")
-            .exact_size(280.0)
-            .resizable(false)
+            .default_size(280.0)
+            .min_size(240.0)
+            .max_size(480.0)
+            .resizable(true)
             .frame(Frame::new().fill(BG_PANEL).inner_margin(14.0))
             .show(ui, |ui| {
                 self.render_right_panel(ui, accent);
@@ -423,45 +405,51 @@ impl SonixApp {
 
         ui.add_space(10.0);
 
-        // 2. Connection Card (Clean pro-audio design)
-        Frame::new()
-            .fill(BG_CARD)
-            .stroke(Stroke::new(1.0, BORDER))
-            .corner_radius(6.0)
-            .inner_margin(Vec2::new(10.0, 8.0))
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    let (dot_color, dev_name) = if self.current_state.is_some() {
-                        (STATUS_GREEN, "TempoTec V1")
-                    } else {
-                        (STATUS_RED, "Disconnected")
-                    };
-                    ui.label(egui::RichText::new("●").color(dot_color).size(10.0));
-                    ui.label(egui::RichText::new(dev_name).color(TEXT_PRIMARY).size(11.0).strong());
+        // 2. Connection Card (Clean pro-audio design - fills sidebar width matching Settings)
+        let card_w = ui.available_width();
+        ui.allocate_ui_with_layout(Vec2::new(card_w, 0.0), Layout::top_down(Align::Min), |ui| {
+            Frame::new()
+                .fill(BG_CARD)
+                .stroke(Stroke::new(1.0, BORDER))
+                .corner_radius(6.0)
+                .inner_margin(Vec2::new(10.0, 8.0))
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.horizontal(|ui| {
+                        let (dot_color, dev_name) = if self.current_state.is_some() {
+                            (STATUS_GREEN, "TempoTec V1")
+                        } else {
+                            (STATUS_RED, "Disconnected")
+                        };
+                        ui.label(egui::RichText::new("●").color(dot_color).size(10.0));
+                        ui.label(egui::RichText::new(dev_name).color(TEXT_PRIMARY).size(11.0).strong());
 
-                    if let Some(ref s) = self.current_state {
-                        if s.battery >= 0 {
-                            let charge_txt = if s.charging { format!("{}% ⚡", s.battery) } else { format!("{}%", s.battery) };
-                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                ui.label(egui::RichText::new(charge_txt).color(TEXT_SECONDARY).size(10.0));
-                            });
+                        if let Some(ref s) = self.current_state {
+                            if s.battery >= 0 {
+                                let charge_txt = if s.charging { format!("{}% ⚡", s.battery) } else { format!("{}%", s.battery) };
+                                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                    ui.label(egui::RichText::new(charge_txt).color(TEXT_SECONDARY).size(10.0));
+                                });
+                            }
                         }
-                    }
-                });
+                    });
 
-                ui.label(egui::RichText::new(format!("{}:{}", self.client.host, self.client.port)).color(TEXT_MUTED).size(9.5));
+                    ui.label(egui::RichText::new(format!("{}:{}", self.client.host, self.client.port)).color(TEXT_MUTED).size(9.5));
 
-                ui.add_space(6.0);
-                ui.horizontal(|ui| {
-                    if ui.add(egui::Button::new("Devices").corner_radius(4.0)).clicked() {
-                        self.show_devices = true;
-                    }
-                    let sync_lbl = if self.is_syncing_db { "Syncing..." } else { "Sync DB" };
-                    if ui.add(egui::Button::new(sync_lbl).corner_radius(4.0)).clicked() {
-                        self.trigger_sync_db();
-                    }
+                    ui.add_space(6.0);
+                    let btn_w = ((ui.available_width() - 6.0) / 2.0).max(60.0);
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing = Vec2::new(6.0, 0.0);
+                        if ui.add_sized([btn_w, 24.0], egui::Button::new(egui::RichText::new("Devices").size(10.5)).corner_radius(4.0)).clicked() {
+                            self.show_devices = true;
+                        }
+                        let sync_lbl = if self.is_syncing_db { "Syncing..." } else { "Sync DB" };
+                        if ui.add_sized([btn_w, 24.0], egui::Button::new(egui::RichText::new(sync_lbl).size(10.5)).corner_radius(4.0)).clicked() {
+                            self.trigger_sync_db();
+                        }
+                    });
                 });
-            });
+        });
 
         ui.add_space(12.0);
 
@@ -487,7 +475,7 @@ impl SonixApp {
                     ui.add_space(2.0);
                     self.nav_button(ui, "favourites", "Favourites", accent);
                     self.nav_button(ui, "playlists", "Playlists", accent);
-                    self.nav_button(ui, "smartmix", "✦ Smart Mix", accent);
+                    self.nav_button(ui, "smartmix", "Smart Mix", accent);
 
                     ui.add_space(10.0);
                     ui.label(egui::RichText::new("ONLINE").color(TEXT_MUTED).size(9.0).strong());
@@ -637,7 +625,7 @@ impl SonixApp {
                 "tracks" => "All Tracks",
                 "favourites" => "Favourites",
                 "playlists" => "Playlists",
-                "smartmix" => "✦ Smart Mix",
+                "smartmix" => "Smart Mix",
                 "albums" => "Albums",
                 "artists" => "Artists",
                 "genres" => "Genres",
@@ -727,56 +715,203 @@ impl SonixApp {
         let is_album_drilldown = self.drilldown_category.as_ref().map(|(cat, _)| cat == "albums").unwrap_or(false);
         let is_artist_drilldown = self.drilldown_category.as_ref().map(|(cat, _)| cat == "artists").unwrap_or(false);
 
-        let avail_w = (ui.available_width() - 8.0).max(360.0);
+        let avail_w = ui.available_width().max(360.0);
         let w_num = 36.0;
-        let w_time = 56.0;
+        let w_time = 52.0;
+        let sep_w = 8.0;
 
+        // Calculate flexible column widths
         let (w_title, mut w_artist, mut w_album) = if is_album_drilldown {
-            let flex = (avail_w - w_num - w_time - 24.0).max(220.0);
-            let wa = self.settings.col_widths[1].clamp(80.0, (flex * 0.4).max(110.0));
-            let wt = (flex - wa).max(130.0);
+            let flex = (avail_w - w_num - w_time - 2.0 * sep_w - 24.0).max(180.0);
+            let wa = self.settings.col_widths[1].clamp(60.0, (flex - 80.0).max(60.0));
+            let wt = (flex - wa).max(80.0);
             (wt, wa, 0.0)
         } else if is_artist_drilldown {
-            let flex = (avail_w - w_num - w_time - 24.0).max(220.0);
-            let wb = self.settings.col_widths[2].clamp(80.0, (flex * 0.4).max(110.0));
-            let wt = (flex - wb).max(130.0);
+            let flex = (avail_w - w_num - w_time - 2.0 * sep_w - 24.0).max(180.0);
+            let wb = self.settings.col_widths[2].clamp(60.0, (flex - 80.0).max(60.0));
+            let wt = (flex - wb).max(80.0);
             (wt, 0.0, wb)
         } else {
-            let flex = (avail_w - w_num - w_time - 32.0).max(220.0);
-            let wa = self.settings.col_widths[1].clamp(80.0, (flex * 0.45).max(100.0));
-            let wb = self.settings.col_widths[2].clamp(80.0, (flex * 0.45).max(100.0));
-            let wt = (flex - wa - wb).max(120.0);
+            let flex = (avail_w - w_num - w_time - 3.0 * sep_w - 24.0).max(220.0);
+            let wa = self.settings.col_widths[1].clamp(60.0, (flex * 0.45).max(70.0));
+            let wb = self.settings.col_widths[2].clamp(60.0, (flex * 0.45).max(70.0));
+            let wt = (flex - wa - wb).max(80.0);
             (wt, wa, wb)
         };
 
-        // Table Header with Resizable Dividers
-        Frame::new()
-            .fill(BG_CARD)
-            .inner_margin(Vec2::new(8.0, 6.0))
-            .corner_radius(4.0)
-            .stroke(Stroke::new(1.0, BORDER))
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.add_sized([w_num, 16.0], egui::Label::new(egui::RichText::new("#").size(9.5).strong().color(TEXT_MUTED)).selectable(false));
+        // Precompute exact X coordinates (shared pixel-for-pixel between Header and Rows)
+        let pad_l = 8.0;
+        let x_num = pad_l;
+        let x_title = x_num + w_num;
+        let x_sep1 = x_title + w_title;
 
-                    ui.add_sized([w_title, 16.0], egui::Label::new(egui::RichText::new("TITLE").size(9.5).strong().color(TEXT_MUTED)).selectable(false));
+        let (x_artist, x_sep2, x_album, x_sep3) = if is_album_drilldown {
+            let xa = x_sep1 + sep_w;
+            let xs2 = xa + w_artist;
+            (xa, xs2, 0.0, 0.0)
+        } else if is_artist_drilldown {
+            let xb = x_sep1 + sep_w;
+            let xs2 = xb + w_album;
+            (0.0, xs2, xb, 0.0)
+        } else {
+            let xa = x_sep1 + sep_w;
+            let xs2 = xa + w_artist;
+            let xb = xs2 + sep_w;
+            let xs3 = xb + w_album;
+            (xa, xs2, xb, xs3)
+        };
 
-                    if !is_artist_drilldown {
-                        col_resize_separator(ui, &mut w_artist);
-                        ui.add_sized([w_artist, 16.0], egui::Label::new(egui::RichText::new("ARTIST").size(9.5).strong().color(TEXT_MUTED)).selectable(false));
-                    }
+        // Table Header
+        let (header_rect, _) = ui.allocate_exact_size(Vec2::new(avail_w, 28.0), egui::Sense::hover());
+        let top = header_rect.top();
+        let bot = header_rect.bottom();
+        let cy = header_rect.center().y;
+        let hdr_font = egui::FontId::proportional(9.5);
 
-                    if !is_album_drilldown {
-                        col_resize_separator(ui, &mut w_album);
-                        ui.add_sized([w_album, 16.0], egui::Label::new(egui::RichText::new("ALBUM").size(9.5).strong().color(TEXT_MUTED)).selectable(false));
-                    }
+        // Divider 1 allocation (after TITLE)
+        let rect_sep1 = egui::Rect::from_min_size(egui::pos2(header_rect.left() + x_sep1, top), Vec2::new(sep_w, 28.0));
+        let resp1 = ui.allocate_rect(rect_sep1, egui::Sense::drag());
+        if resp1.hovered() || resp1.dragged() {
+            ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeColumn);
+        }
+        if resp1.dragged() {
+            let dx = resp1.drag_delta().x;
+            if is_album_drilldown {
+                w_artist = (w_artist - dx).clamp(60.0, 600.0);
+            } else if is_artist_drilldown {
+                w_album = (w_album - dx).clamp(60.0, 600.0);
+            } else {
+                w_artist = (w_artist - dx).clamp(60.0, 600.0);
+            }
+        }
 
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        ui.add_sized([w_time, 16.0], egui::Label::new(egui::RichText::new("TIME").size(9.5).strong().color(TEXT_MUTED)).selectable(false));
-                    });
-                });
-            });
+        let (resp2, resp3_opt) = if is_album_drilldown {
+            let rect_sep2 = egui::Rect::from_min_size(egui::pos2(header_rect.left() + x_sep2, top), Vec2::new(sep_w, 28.0));
+            let r2 = ui.allocate_rect(rect_sep2, egui::Sense::drag());
+            if r2.hovered() || r2.dragged() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeColumn);
+            }
+            if r2.dragged() {
+                w_artist = (w_artist + r2.drag_delta().x).clamp(60.0, 600.0);
+            }
+            (r2, None)
+        } else if is_artist_drilldown {
+            let rect_sep2 = egui::Rect::from_min_size(egui::pos2(header_rect.left() + x_sep2, top), Vec2::new(sep_w, 28.0));
+            let r2 = ui.allocate_rect(rect_sep2, egui::Sense::drag());
+            if r2.hovered() || r2.dragged() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeColumn);
+            }
+            if r2.dragged() {
+                w_album = (w_album + r2.drag_delta().x).clamp(60.0, 600.0);
+            }
+            (r2, None)
+        } else {
+            let rect_sep2 = egui::Rect::from_min_size(egui::pos2(header_rect.left() + x_sep2, top), Vec2::new(sep_w, 28.0));
+            let r2 = ui.allocate_rect(rect_sep2, egui::Sense::drag());
+            if r2.hovered() || r2.dragged() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeColumn);
+            }
+            if r2.dragged() {
+                let dx = r2.drag_delta().x;
+                w_artist = (w_artist + dx).clamp(60.0, 600.0);
+                w_album = (w_album - dx).clamp(60.0, 600.0);
+            }
 
+            let rect_sep3 = egui::Rect::from_min_size(egui::pos2(header_rect.left() + x_sep3, top), Vec2::new(sep_w, 28.0));
+            let r3 = ui.allocate_rect(rect_sep3, egui::Sense::drag());
+            if r3.hovered() || r3.dragged() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeColumn);
+            }
+            if r3.dragged() {
+                w_album = (w_album + r3.drag_delta().x).clamp(60.0, 600.0);
+            }
+            (r2, Some(r3))
+        };
+
+        // Paint header elements
+        let hp = ui.painter();
+        hp.rect_filled(header_rect, 4.0, BG_CARD);
+        hp.rect_stroke(header_rect, 4.0, Stroke::new(1.0, BORDER), egui::StrokeKind::Inside);
+
+        // # column header
+        hp.text(
+            egui::pos2(header_rect.left() + x_num + w_num / 2.0, cy),
+            egui::Align2::CENTER_CENTER,
+            "#",
+            hdr_font.clone(),
+            TEXT_MUTED,
+        );
+
+        // TITLE column header
+        hp.text(
+            egui::pos2(header_rect.left() + x_title + 4.0, cy),
+            egui::Align2::LEFT_CENTER,
+            "TITLE",
+            hdr_font.clone(),
+            TEXT_MUTED,
+        );
+
+        let col1 = if resp1.hovered() || resp1.dragged() { Color32::from_rgb(220, 220, 235) } else { Color32::from_rgb(52, 56, 68) };
+        hp.line_segment([egui::pos2(rect_sep1.center().x, top + 5.0), egui::pos2(rect_sep1.center().x, bot - 5.0)], Stroke::new(1.0, col1));
+
+        let col2 = if resp2.hovered() || resp2.dragged() { Color32::from_rgb(220, 220, 235) } else { Color32::from_rgb(52, 56, 68) };
+
+        if is_album_drilldown {
+            // ARTIST column
+            hp.text(
+                egui::pos2(header_rect.left() + x_artist + 4.0, cy),
+                egui::Align2::LEFT_CENTER,
+                "ARTIST",
+                hdr_font.clone(),
+                TEXT_MUTED,
+            );
+            hp.line_segment([egui::pos2(header_rect.left() + x_sep2 + sep_w / 2.0, top + 5.0), egui::pos2(header_rect.left() + x_sep2 + sep_w / 2.0, bot - 5.0)], Stroke::new(1.0, col2));
+        } else if is_artist_drilldown {
+            // ALBUM column
+            hp.text(
+                egui::pos2(header_rect.left() + x_album + 4.0, cy),
+                egui::Align2::LEFT_CENTER,
+                "ALBUM",
+                hdr_font.clone(),
+                TEXT_MUTED,
+            );
+            hp.line_segment([egui::pos2(header_rect.left() + x_sep2 + sep_w / 2.0, top + 5.0), egui::pos2(header_rect.left() + x_sep2 + sep_w / 2.0, bot - 5.0)], Stroke::new(1.0, col2));
+        } else {
+            // ARTIST column
+            hp.text(
+                egui::pos2(header_rect.left() + x_artist + 4.0, cy),
+                egui::Align2::LEFT_CENTER,
+                "ARTIST",
+                hdr_font.clone(),
+                TEXT_MUTED,
+            );
+            hp.line_segment([egui::pos2(header_rect.left() + x_sep2 + sep_w / 2.0, top + 5.0), egui::pos2(header_rect.left() + x_sep2 + sep_w / 2.0, bot - 5.0)], Stroke::new(1.0, col2));
+
+            // ALBUM column
+            hp.text(
+                egui::pos2(header_rect.left() + x_album + 4.0, cy),
+                egui::Align2::LEFT_CENTER,
+                "ALBUM",
+                hdr_font.clone(),
+                TEXT_MUTED,
+            );
+
+            if let Some(ref r3) = resp3_opt {
+                let col3 = if r3.hovered() || r3.dragged() { Color32::from_rgb(220, 220, 235) } else { Color32::from_rgb(52, 56, 68) };
+                hp.line_segment([egui::pos2(header_rect.left() + x_sep3 + sep_w / 2.0, top + 5.0), egui::pos2(header_rect.left() + x_sep3 + sep_w / 2.0, bot - 5.0)], Stroke::new(1.0, col3));
+            }
+        }
+
+        // TIME column header (Right-aligned)
+        hp.text(
+            egui::pos2(header_rect.right() - 14.0, cy),
+            egui::Align2::RIGHT_CENTER,
+            "TIME",
+            hdr_font,
+            TEXT_MUTED,
+        );
+
+        // Persist updated column widths
         if !is_artist_drilldown && (w_artist - self.settings.col_widths[1]).abs() > 0.5 {
             self.settings.col_widths[1] = w_artist;
             self.settings.save();
@@ -808,9 +943,12 @@ impl SonixApp {
 
                 let (rect, row_resp) = ui.allocate_exact_size(Vec2::new(avail_w, 36.0), egui::Sense::click());
                 let is_hovered = row_resp.hovered();
+                if is_hovered {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                }
                 let painter = ui.painter();
 
-                // 1. Paint background FIRST - so hover can never cover text!
+                // 1. Paint background FIRST - sleek pro-audio look
                 let bg_color = if is_current {
                     Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 28)
                 } else if is_hovered {
@@ -833,8 +971,8 @@ impl SonixApp {
                     painter.rect_filled(ind_rect, 1.5, accent);
                 }
 
-                // 2. High-contrast Text Colors (When hovered: Title turns to accent, matching Albums!)
-                let cy = rect.center().y;
+                // 2. High-contrast Text Colors
+                let row_cy = rect.center().y;
                 let num_color = if is_current { accent } else { TEXT_MUTED };
                 let title_color = if is_current || is_hovered { accent } else { TEXT_PRIMARY };
                 let artist_color = if is_hovered { Color32::from_rgb(215, 218, 228) } else { TEXT_SECONDARY };
@@ -850,7 +988,7 @@ impl SonixApp {
                     format!("{:02}", idx + 1)
                 };
                 painter.text(
-                    egui::pos2(rect.left() + 18.0, cy),
+                    egui::pos2(rect.left() + x_num + w_num / 2.0, row_cy),
                     egui::Align2::CENTER_CENTER,
                     num_str,
                     egui::FontId::proportional(11.0),
@@ -858,22 +996,22 @@ impl SonixApp {
                 );
 
                 // 4. Draw Column 2: Title (with clipping)
-                let x_title = rect.left() + w_num + 8.0;
-                let title_clip = egui::Rect::from_min_size(egui::pos2(x_title, rect.top()), Vec2::new(w_title - 4.0, rect.height()));
+                let title_pos_x = rect.left() + x_title + 4.0;
+                let title_clip = egui::Rect::from_min_size(egui::pos2(title_pos_x, rect.top()), Vec2::new(w_title - 6.0, rect.height()));
                 painter.with_clip_rect(title_clip).text(
-                    egui::pos2(x_title, cy),
+                    egui::pos2(title_pos_x, row_cy),
                     egui::Align2::LEFT_CENTER,
                     &track.title,
                     egui::FontId::proportional(12.5),
                     title_color,
                 );
 
-                // 5. Draw Column 3: Artist (if not artist drilldown)
+                // 5. Draw Column 3: Artist (if visible)
                 if !is_artist_drilldown {
-                    let x_artist = x_title + w_title + 8.0;
-                    let artist_clip = egui::Rect::from_min_size(egui::pos2(x_artist, rect.top()), Vec2::new(w_artist - 4.0, rect.height()));
+                    let artist_pos_x = rect.left() + x_artist + 4.0;
+                    let artist_clip = egui::Rect::from_min_size(egui::pos2(artist_pos_x, rect.top()), Vec2::new(w_artist - 6.0, rect.height()));
                     painter.with_clip_rect(artist_clip).text(
-                        egui::pos2(x_artist, cy),
+                        egui::pos2(artist_pos_x, row_cy),
                         egui::Align2::LEFT_CENTER,
                         &track.artist,
                         egui::FontId::proportional(11.5),
@@ -881,16 +1019,12 @@ impl SonixApp {
                     );
                 }
 
-                // 6. Draw Column 4: Album (if not album drilldown)
+                // 6. Draw Column 4: Album (if visible)
                 if !is_album_drilldown {
-                    let x_album = if is_artist_drilldown {
-                        x_title + w_title + 8.0
-                    } else {
-                        x_title + w_title + 8.0 + w_artist + 8.0
-                    };
-                    let album_clip = egui::Rect::from_min_size(egui::pos2(x_album, rect.top()), Vec2::new(w_album - 4.0, rect.height()));
+                    let album_pos_x = rect.left() + x_album + 4.0;
+                    let album_clip = egui::Rect::from_min_size(egui::pos2(album_pos_x, rect.top()), Vec2::new(w_album - 6.0, rect.height()));
                     painter.with_clip_rect(album_clip).text(
-                        egui::pos2(x_album, cy),
+                        egui::pos2(album_pos_x, row_cy),
                         egui::Align2::LEFT_CENTER,
                         &track.album,
                         egui::FontId::proportional(11.0),
@@ -898,11 +1032,11 @@ impl SonixApp {
                     );
                 }
 
-                // 7. Draw Column 5: Time (Right-aligned)
+                // 7. Draw Column 5: Time (Right-aligned, matching header)
                 if track.duration > 0 {
                     let dur_str = format_duration(track.duration);
                     painter.text(
-                        egui::pos2(rect.right() - 12.0, cy),
+                        egui::pos2(rect.right() - 14.0, row_cy),
                         egui::Align2::RIGHT_CENTER,
                         dur_str,
                         egui::FontId::proportional(11.0),
@@ -927,15 +1061,13 @@ impl SonixApp {
                         queue_track = Some(track.path.clone());
                         ui.close();
                     }
-                    if ui.button("✦ Start Smart Mix").clicked() {
+                    if ui.button("Start Smart Mix").clicked() {
                         smartmix_seed = Some(track.path.clone());
                         ui.close();
                     }
                 });
             }
-        });
-
-        if let Some(path) = play_track {
+        });        if let Some(path) = play_track {
             if let Some((ref cat, ref name)) = self.drilldown_category {
                 if cat == "playlists" {
                     self.client.command("play_path", &[("path", &path), ("list", "playlist"), ("value", name)]);
@@ -1147,8 +1279,15 @@ impl SonixApp {
 
                 ui.add_space(4.0);
 
-                // 3. Compact Row: Audio Badge & Smart Mix button
+                // 3. Compact Row: Audio Badge & Smart Mix button (Horizontally Centered)
+                let smartmix_w = 78.0;
+                let badge_w = if !badge.is_empty() { 68.0 } else { 0.0 };
+                let row3_gap = if !badge.is_empty() { 6.0 } else { 0.0 };
+                let total_row3 = badge_w + row3_gap + smartmix_w;
+                let pad3 = ((ui.available_width() - total_row3) / 2.0).max(0.0);
+
                 ui.horizontal(|ui| {
+                    ui.add_space(pad3);
                     ui.spacing_mut().item_spacing = Vec2::new(6.0, 0.0);
                     if !badge.is_empty() {
                         Frame::new()
@@ -1161,11 +1300,11 @@ impl SonixApp {
                             });
                     }
                     if ui.add(
-                        egui::Button::new(egui::RichText::new("✦ Smart Mix").size(9.5).color(accent))
+                        egui::Button::new(egui::RichText::new("Smart Mix").size(9.5).color(accent))
                             .fill(BG_CARD)
                             .stroke(Stroke::new(1.0, BORDER))
                             .corner_radius(6.0)
-                            .min_size(Vec2::new(75.0, 20.0)),
+                            .min_size(Vec2::new(smartmix_w, 20.0)),
                     ).clicked() {
                         let seed = self.current_state.as_ref().map(|s| s.path.as_str()).unwrap_or("");
                         self.current_nav = "smartmix".to_string();
@@ -1202,8 +1341,12 @@ impl SonixApp {
 
                 ui.add_space(4.0);
 
-                // 5. Centered Vector Transport Controls
+                // 5. Centered Vector Transport Controls (Horizontally Centered)
+                let total_transport = 28.0 + 30.0 + 42.0 + 30.0 + 30.0 + 4.0 * 8.0; // 192.0
+                let pad5 = ((ui.available_width() - total_transport) / 2.0).max(0.0);
+
                 ui.horizontal(|ui| {
+                    ui.add_space(pad5);
                     ui.spacing_mut().item_spacing = Vec2::new(8.0, 0.0);
 
                     // Mode Toggle (Shuffle / Repeat / Normal)
@@ -1244,67 +1387,74 @@ impl SonixApp {
 
                 ui.add_space(6.0);
 
-                // 6. Hardware DSP Quick-Pills Card (Always visible, compact)
-                Frame::new()
-                    .fill(BG_CARD)
-                    .stroke(Stroke::new(1.0, BORDER))
-                    .corner_radius(6.0)
-                    .inner_margin(Vec2::new(8.0, 5.0))
-                    .show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.label(egui::RichText::new("HARDWARE DSP").size(8.0).strong().color(TEXT_MUTED));
+                // 6. Hardware DSP Quick-Pills Card (Fills panel width with margin, pills distributed evenly)
+                let dsp_w = ui.available_width();
+                ui.allocate_ui_with_layout(Vec2::new(dsp_w, 0.0), Layout::top_down(Align::Min), |ui| {
+                    Frame::new()
+                        .fill(BG_CARD)
+                        .stroke(Stroke::new(1.0, BORDER))
+                        .corner_radius(6.0)
+                        .inner_margin(Vec2::new(8.0, 6.0))
+                        .show(ui, |ui| {
+                            ui.set_width(ui.available_width());
+                            ui.horizontal(|ui| {
+                                ui.label(egui::RichText::new("HARDWARE DSP").size(8.0).strong().color(TEXT_MUTED));
+                            });
+
+                            ui.add_space(4.0);
+                            let inner_w = ui.available_width();
+                            let pill_spacing = 4.0;
+                            let pill_w = ((inner_w - 4.0 * pill_spacing) / 5.0).max(30.0);
+                            ui.horizontal(|ui| {
+                                ui.spacing_mut().item_spacing = Vec2::new(pill_spacing, 0.0);
+                                let mseb_on = self.current_state.as_ref().map(|s| s.mseb).unwrap_or(false);
+                                if dsp_pill_button(ui, "MSEB", mseb_on, accent, pill_w, 22.0).clicked() {
+                                    if let Some(ref mut s) = self.current_state {
+                                        s.mseb = !mseb_on;
+                                    }
+                                    self.client.set_mseb(!mseb_on);
+                                }
+
+                                let eq_on = self.current_state.as_ref().map(|s| s.eq).unwrap_or(false);
+                                if dsp_pill_button(ui, "EQ", eq_on, accent, pill_w, 22.0).clicked() {
+                                    if let Some(ref mut s) = self.current_state {
+                                        s.eq = !eq_on;
+                                    }
+                                    self.client.set_eq(!eq_on);
+                                }
+
+                                let peq_on = self.current_state.as_ref().map(|s| s.peq).unwrap_or(false);
+                                if dsp_pill_button(ui, "PEQ", peq_on, accent, pill_w, 22.0).clicked() {
+                                    if let Some(ref mut s) = self.current_state {
+                                        s.peq = !peq_on;
+                                    }
+                                    self.client.set_peq(!peq_on);
+                                }
+
+                                let prof = self.current_state.as_ref().map(|s| s.peq_profile).unwrap_or(1);
+                                let p_label = format!("P{}", prof);
+                                // Only illuminated when peq_on is true!
+                                if dsp_pill_button(ui, &p_label, peq_on, accent, pill_w, 22.0).clicked() {
+                                    let next_p = if prof == 1 { 2 } else { 1 };
+                                    if let Some(ref mut s) = self.current_state {
+                                        s.peq_profile = next_p;
+                                    }
+                                    self.client.set_peq_profile(next_p);
+                                }
+
+                                let high_gain = self.current_state.as_ref().map(|s| s.is_high_gain()).unwrap_or(false);
+                                let gain_lbl = if high_gain { "HIGH" } else { "LOW" };
+                                if dsp_pill_button(ui, gain_lbl, high_gain, accent, pill_w, 22.0).clicked() {
+                                    if let Some(ref mut s) = self.current_state {
+                                        s.high_gain = Some(!high_gain);
+                                        s.gain_high = Some(!high_gain);
+                                        s.gain = Some(if !high_gain { "high".into() } else { "low".into() });
+                                    }
+                                    self.client.toggle_gain();
+                                }
+                            });
                         });
-
-                        ui.add_space(4.0);
-                        ui.horizontal(|ui| {
-                            ui.spacing_mut().item_spacing = Vec2::new(3.0, 0.0);
-                            let mseb_on = self.current_state.as_ref().map(|s| s.mseb).unwrap_or(false);
-                            if dsp_pill_button(ui, "MSEB", mseb_on, accent, 44.0, 20.0).clicked() {
-                                if let Some(ref mut s) = self.current_state {
-                                    s.mseb = !mseb_on;
-                                }
-                                self.client.set_mseb(!mseb_on);
-                            }
-
-                            let eq_on = self.current_state.as_ref().map(|s| s.eq).unwrap_or(false);
-                            if dsp_pill_button(ui, "EQ", eq_on, accent, 36.0, 20.0).clicked() {
-                                if let Some(ref mut s) = self.current_state {
-                                    s.eq = !eq_on;
-                                }
-                                self.client.set_eq(!eq_on);
-                            }
-
-                            let peq_on = self.current_state.as_ref().map(|s| s.peq).unwrap_or(false);
-                            if dsp_pill_button(ui, "PEQ", peq_on, accent, 40.0, 20.0).clicked() {
-                                if let Some(ref mut s) = self.current_state {
-                                    s.peq = !peq_on;
-                                }
-                                self.client.set_peq(!peq_on);
-                            }
-
-                            let prof = self.current_state.as_ref().map(|s| s.peq_profile).unwrap_or(1);
-                            let p_label = format!("P{}", prof);
-                            // Only illuminated when peq_on is true!
-                            if dsp_pill_button(ui, &p_label, peq_on, accent, 28.0, 20.0).clicked() {
-                                let next_p = if prof == 1 { 2 } else { 1 };
-                                if let Some(ref mut s) = self.current_state {
-                                    s.peq_profile = next_p;
-                                }
-                                self.client.set_peq_profile(next_p);
-                            }
-
-                            let high_gain = self.current_state.as_ref().map(|s| s.is_high_gain()).unwrap_or(false);
-                            let gain_lbl = if high_gain { "HIGH" } else { "LOW" };
-                            if dsp_pill_button(ui, gain_lbl, high_gain, accent, 40.0, 20.0).clicked() {
-                                if let Some(ref mut s) = self.current_state {
-                                    s.high_gain = Some(!high_gain);
-                                    s.gain_high = Some(!high_gain);
-                                    s.gain = Some(if !high_gain { "high".into() } else { "low".into() });
-                                }
-                                self.client.toggle_gain();
-                            }
-                        });
-                    });
+                });
 
                 ui.add_space(6.0);
 

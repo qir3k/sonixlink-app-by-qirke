@@ -390,28 +390,86 @@ pub fn playback_mode_button(ui: &mut Ui, mode: &str, accent: Color32, size: f32)
 }
 
 pub fn header_pill_button(ui: &mut Ui, symbol: &str, label: &str, is_accent: bool, accent: Color32) -> Response {
-    let (bg, text_color, stroke) = if is_accent {
-        (accent, Color32::WHITE, Stroke::NONE)
+    let font_id = egui::FontId::proportional(11.5);
+    let galley = ui.painter().layout_no_wrap(label.to_string(), font_id.clone(), Color32::WHITE);
+    let is_play = symbol == "▶" || symbol == "play";
+    let is_shuffle = symbol == "⇄" || symbol == "shuffle";
+    let has_icon = is_play || is_shuffle;
+    let icon_w = if has_icon { 11.0 } else { 0.0 };
+    let gap = if has_icon { 6.0 } else { 0.0 };
+    let btn_w = (galley.size().x + icon_w + gap + 26.0).max(72.0);
+
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(btn_w, 28.0), Sense::click());
+    let is_hovered = response.hovered();
+    let is_down = response.is_pointer_button_down_on();
+
+    let bg = if is_accent {
+        if is_down {
+            Color32::from_rgb(
+                ((accent.r() as f32) * 0.85) as u8,
+                ((accent.g() as f32) * 0.85) as u8,
+                ((accent.b() as f32) * 0.85) as u8,
+            )
+        } else if is_hovered {
+            Color32::from_rgb(
+                ((accent.r() as f32) * 1.12).min(255.0) as u8,
+                ((accent.g() as f32) * 1.12).min(255.0) as u8,
+                ((accent.b() as f32) * 1.12).min(255.0) as u8,
+            )
+        } else {
+            accent
+        }
     } else {
-        (
-            Color32::from_rgb(24, 26, 32),
-            Color32::from_rgb(220, 225, 235),
-            Stroke::new(1.0, Color32::from_rgb(45, 50, 65)),
-        )
+        if is_hovered { Color32::from_rgb(34, 38, 48) } else { Color32::from_rgb(24, 26, 32) }
     };
 
-    let btn = egui::Button::new(
-        egui::RichText::new(format!("{}  {}", symbol, label))
-            .size(11.5)
-            .color(text_color)
-            .strong()
-    )
-    .fill(bg)
-    .stroke(stroke)
-    .corner_radius(14.0)
-    .min_size(Vec2::new(0.0, 28.0));
+    let stroke = if is_accent {
+        Stroke::NONE
+    } else {
+        Stroke::new(1.0, Color32::from_rgb(45, 50, 65))
+    };
+    let text_color = if is_accent { Color32::WHITE } else { Color32::from_rgb(220, 225, 235) };
 
-    ui.add(btn)
+    let painter = ui.painter();
+    painter.rect_filled(rect, 14.0, bg);
+    if stroke.width > 0.0 {
+        painter.rect_stroke(rect, 14.0, stroke, egui::StrokeKind::Inside);
+    }
+
+    let cy = rect.center().y;
+    let content_w = galley.size().x + icon_w + gap;
+    let start_x = rect.center().x - content_w / 2.0;
+
+    if is_play {
+        // Crisp vector play triangle - 100% reliable, never a missing glyph box!
+        let tri_w = 8.0;
+        let tri_h = 9.0;
+        let p1 = Pos2::new(start_x, cy - tri_h / 2.0);
+        let p2 = Pos2::new(start_x, cy + tri_h / 2.0);
+        let p3 = Pos2::new(start_x + tri_w, cy);
+        painter.add(egui::Shape::convex_polygon(vec![p1, p2, p3], text_color, Stroke::NONE));
+    } else if is_shuffle {
+        // Clean vector shuffle crossing arrows
+        let sx = start_x;
+        painter.line_segment([Pos2::new(sx, cy - 2.5), Pos2::new(sx + 7.0, cy - 2.5)], Stroke::new(1.3, text_color));
+        painter.line_segment([Pos2::new(sx + 5.0, cy - 4.5), Pos2::new(sx + 7.5, cy - 2.5)], Stroke::new(1.3, text_color));
+        painter.line_segment([Pos2::new(sx + 5.0, cy - 0.5), Pos2::new(sx + 7.5, cy - 2.5)], Stroke::new(1.3, text_color));
+
+        painter.line_segment([Pos2::new(sx + 7.5, cy + 2.5), Pos2::new(sx + 0.5, cy + 2.5)], Stroke::new(1.3, text_color));
+        painter.line_segment([Pos2::new(sx + 2.5, cy + 0.5), Pos2::new(sx, cy + 2.5)], Stroke::new(1.3, text_color));
+        painter.line_segment([Pos2::new(sx + 2.5, cy + 4.5), Pos2::new(sx, cy + 2.5)], Stroke::new(1.3, text_color));
+    }
+
+    let text_x = if has_icon { start_x + icon_w + gap } else { start_x };
+    painter.text(
+        Pos2::new(text_x, cy),
+        egui::Align2::LEFT_CENTER,
+        label,
+        font_id,
+        text_color,
+    );
+
+    response
 }
 
 pub fn volume_speaker_icon(ui: &mut Ui, volume: u8, accent: Color32, size: f32) -> Response {
