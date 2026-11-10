@@ -507,11 +507,11 @@ impl SonixApp {
 
     fn nav_button(&mut self, ui: &mut Ui, key: &str, label: &str, accent: Color32) {
         let is_active = self.current_nav == key;
-        let (rect, resp) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 30.0), egui::Sense::click());
+        let (rect, resp) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 32.0), egui::Sense::click());
         let is_hovered = resp.hovered();
 
         let bg = if is_active {
-            Color32::from_rgba_premultiplied(accent.r(), accent.g(), accent.b(), 26)
+            Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 28)
         } else if is_hovered {
             BG_CARD_HOVER
         } else {
@@ -526,18 +526,20 @@ impl SonixApp {
                 Vec2::new(3.0, rect.height() - 12.0),
             );
             ui.painter().rect_filled(ind_rect, 1.5, accent);
+        } else if is_hovered {
+            ui.painter().rect_stroke(rect, 5.0, Stroke::new(1.0, BORDER_LIGHT), egui::StrokeKind::Inside);
         }
 
         let text_color = if is_active {
             Color32::WHITE
         } else if is_hovered {
-            Color32::from_rgb(225, 228, 235)
+            Color32::from_rgb(230, 232, 240)
         } else {
             TEXT_SECONDARY
         };
 
-        let font_id = egui::FontId::proportional(if is_active { 12.0 } else { 11.5 });
-        let text_pos = egui::pos2(rect.left() + 12.0, rect.center().y);
+        let font_id = egui::FontId::proportional(if is_active { 12.5 } else { 12.0 });
+        let text_pos = egui::pos2(rect.left() + 14.0, rect.center().y);
         ui.painter().text(text_pos, egui::Align2::LEFT_CENTER, label, font_id, text_color);
 
         if resp.clicked() {
@@ -722,14 +724,30 @@ impl SonixApp {
     }
 
     fn render_tracks_table(&mut self, ui: &mut Ui, accent: Color32) {
+        let is_album_drilldown = self.drilldown_category.as_ref().map(|(cat, _)| cat == "albums").unwrap_or(false);
+        let is_artist_drilldown = self.drilldown_category.as_ref().map(|(cat, _)| cat == "artists").unwrap_or(false);
+
         let avail_w = (ui.available_width() - 8.0).max(360.0);
         let w_num = 36.0;
         let w_time = 56.0;
-        let flex_avail = (avail_w - w_num - w_time - 32.0).max(220.0);
 
-        let mut w_artist = self.settings.col_widths[1].clamp(80.0, (flex_avail * 0.45).max(100.0));
-        let mut w_album = self.settings.col_widths[2].clamp(80.0, (flex_avail * 0.45).max(100.0));
-        let w_title = (flex_avail - w_artist - w_album).max(120.0);
+        let (w_title, mut w_artist, mut w_album) = if is_album_drilldown {
+            let flex = (avail_w - w_num - w_time - 24.0).max(220.0);
+            let wa = self.settings.col_widths[1].clamp(80.0, (flex * 0.4).max(110.0));
+            let wt = (flex - wa).max(130.0);
+            (wt, wa, 0.0)
+        } else if is_artist_drilldown {
+            let flex = (avail_w - w_num - w_time - 24.0).max(220.0);
+            let wb = self.settings.col_widths[2].clamp(80.0, (flex * 0.4).max(110.0));
+            let wt = (flex - wb).max(130.0);
+            (wt, 0.0, wb)
+        } else {
+            let flex = (avail_w - w_num - w_time - 32.0).max(220.0);
+            let wa = self.settings.col_widths[1].clamp(80.0, (flex * 0.45).max(100.0));
+            let wb = self.settings.col_widths[2].clamp(80.0, (flex * 0.45).max(100.0));
+            let wt = (flex - wa - wb).max(120.0);
+            (wt, wa, wb)
+        };
 
         // Table Header with Resizable Dividers
         Frame::new()
@@ -742,12 +760,16 @@ impl SonixApp {
                     ui.add_sized([w_num, 16.0], egui::Label::new(egui::RichText::new("#").size(9.5).strong().color(TEXT_MUTED)).selectable(false));
 
                     ui.add_sized([w_title, 16.0], egui::Label::new(egui::RichText::new("TITLE").size(9.5).strong().color(TEXT_MUTED)).selectable(false));
-                    col_resize_separator(ui, &mut w_artist);
 
-                    ui.add_sized([w_artist, 16.0], egui::Label::new(egui::RichText::new("ARTIST").size(9.5).strong().color(TEXT_MUTED)).selectable(false));
-                    col_resize_separator(ui, &mut w_album);
+                    if !is_artist_drilldown {
+                        col_resize_separator(ui, &mut w_artist);
+                        ui.add_sized([w_artist, 16.0], egui::Label::new(egui::RichText::new("ARTIST").size(9.5).strong().color(TEXT_MUTED)).selectable(false));
+                    }
 
-                    ui.add_sized([w_album, 16.0], egui::Label::new(egui::RichText::new("ALBUM").size(9.5).strong().color(TEXT_MUTED)).selectable(false));
+                    if !is_album_drilldown {
+                        col_resize_separator(ui, &mut w_album);
+                        ui.add_sized([w_album, 16.0], egui::Label::new(egui::RichText::new("ALBUM").size(9.5).strong().color(TEXT_MUTED)).selectable(false));
+                    }
 
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         ui.add_sized([w_time, 16.0], egui::Label::new(egui::RichText::new("TIME").size(9.5).strong().color(TEXT_MUTED)).selectable(false));
@@ -755,10 +777,11 @@ impl SonixApp {
                 });
             });
 
-        if (w_artist - self.settings.col_widths[1]).abs() > 0.5
-            || (w_album - self.settings.col_widths[2]).abs() > 0.5
-        {
+        if !is_artist_drilldown && (w_artist - self.settings.col_widths[1]).abs() > 0.5 {
             self.settings.col_widths[1] = w_artist;
+            self.settings.save();
+        }
+        if !is_album_drilldown && (w_album - self.settings.col_widths[2]).abs() > 0.5 {
             self.settings.col_widths[2] = w_album;
             self.settings.save();
         }
@@ -783,81 +806,108 @@ impl SonixApp {
                 let row_bg = if idx % 2 == 0 { ROW_EVEN } else { ROW_ODD };
                 let is_current = self.current_state.as_ref().map(|s| s.path == track.path).unwrap_or(false);
 
-                let fill = if is_current {
-                    Color32::from_rgba_premultiplied(accent.r(), accent.g(), accent.b(), 26)
+                let (rect, row_resp) = ui.allocate_exact_size(Vec2::new(avail_w, 36.0), egui::Sense::click());
+                let is_hovered = row_resp.hovered();
+                let painter = ui.painter();
+
+                // 1. Paint background FIRST - so hover can never cover text!
+                let bg_color = if is_current {
+                    Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 28)
+                } else if is_hovered {
+                    BG_CARD_HOVER
                 } else {
                     row_bg
                 };
 
-                let frame_resp = Frame::new()
-                    .fill(fill)
-                    .corner_radius(4.0)
-                    .inner_margin(Vec2::new(8.0, 5.0))
-                    .show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            // Column 1: # or Playing indicator
-                            if is_current {
-                                ui.add_sized([w_num, 18.0], egui::Label::new(egui::RichText::new("▶").size(11.0).color(accent)).selectable(false));
-                            } else {
-                                let num_str = if track.track_num > 0 {
-                                    format!("{:02}", track.track_num)
-                                } else {
-                                    format!("{:02}", idx + 1)
-                                };
-                                ui.add_sized([w_num, 18.0], egui::Label::new(egui::RichText::new(num_str).size(10.5).color(TEXT_MUTED)).selectable(false));
-                            }
+                painter.rect_filled(rect, 4.0, bg_color);
 
-                            // Column 2: Title
-                            let title_color = if is_current { accent } else { TEXT_PRIMARY };
-                            ui.add_sized(
-                                [w_title, 18.0],
-                                egui::Label::new(egui::RichText::new(&track.title).size(12.0).strong().color(title_color))
-                                    .truncate()
-                                    .selectable(false),
-                            );
-
-                            ui.add_space(8.0);
-
-                            // Column 3: Artist
-                            ui.add_sized(
-                                [w_artist, 18.0],
-                                egui::Label::new(egui::RichText::new(&track.artist).size(11.0).color(TEXT_SECONDARY))
-                                    .truncate()
-                                    .selectable(false),
-                            );
-
-                            ui.add_space(8.0);
-
-                            // Column 4: Album
-                            ui.add_sized(
-                                [w_album, 18.0],
-                                egui::Label::new(egui::RichText::new(&track.album).size(11.0).color(TEXT_MUTED))
-                                    .truncate()
-                                    .selectable(false),
-                            );
-
-                            // Column 5: Time (Right-aligned)
-                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                let dur_str = if track.duration > 0 {
-                                    format_duration(track.duration)
-                                } else {
-                                    String::new()
-                                };
-                                ui.add_sized([w_time, 18.0], egui::Label::new(egui::RichText::new(dur_str).size(10.5).color(TEXT_MUTED)).selectable(false));
-                            });
-                        });
-                    });
-
-                let row_resp = frame_resp.response.interact(egui::Sense::click());
-                if row_resp.hovered() && !is_current {
-                    ui.painter().rect_filled(frame_resp.response.rect, 4.0, BG_CARD_HOVER);
+                if is_hovered {
+                    painter.rect_stroke(rect, 4.0, Stroke::new(1.0, BORDER_LIGHT), egui::StrokeKind::Inside);
                 }
+
                 if is_current {
                     let ind_rect = egui::Rect::from_min_size(
-                        egui::pos2(frame_resp.response.rect.left() + 1.5, frame_resp.response.rect.top() + 5.0),
-                        Vec2::new(3.0, frame_resp.response.rect.height() - 10.0),
+                        egui::pos2(rect.left() + 2.0, rect.top() + 6.0),
+                        Vec2::new(3.0, rect.height() - 12.0),
                     );
-                    ui.painter().rect_filled(ind_rect, 1.5, accent);
+                    painter.rect_filled(ind_rect, 1.5, accent);
+                }
+
+                // 2. High-contrast Text Colors (When hovered: Title turns to accent, matching Albums!)
+                let cy = rect.center().y;
+                let num_color = if is_current { accent } else { TEXT_MUTED };
+                let title_color = if is_current || is_hovered { accent } else { TEXT_PRIMARY };
+                let artist_color = if is_hovered { Color32::from_rgb(215, 218, 228) } else { TEXT_SECONDARY };
+                let album_color = if is_hovered { Color32::from_rgb(175, 178, 190) } else { TEXT_MUTED };
+                let time_color = if is_hovered { Color32::from_rgb(190, 195, 205) } else { TEXT_MUTED };
+
+                // 3. Draw Column 1: # or Play symbol
+                let num_str = if is_current {
+                    "▶".to_string()
+                } else if track.track_num > 0 {
+                    format!("{:02}", track.track_num)
+                } else {
+                    format!("{:02}", idx + 1)
+                };
+                painter.text(
+                    egui::pos2(rect.left() + 18.0, cy),
+                    egui::Align2::CENTER_CENTER,
+                    num_str,
+                    egui::FontId::proportional(11.0),
+                    num_color,
+                );
+
+                // 4. Draw Column 2: Title (with clipping)
+                let x_title = rect.left() + w_num + 8.0;
+                let title_clip = egui::Rect::from_min_size(egui::pos2(x_title, rect.top()), Vec2::new(w_title - 4.0, rect.height()));
+                painter.with_clip_rect(title_clip).text(
+                    egui::pos2(x_title, cy),
+                    egui::Align2::LEFT_CENTER,
+                    &track.title,
+                    egui::FontId::proportional(12.5),
+                    title_color,
+                );
+
+                // 5. Draw Column 3: Artist (if not artist drilldown)
+                if !is_artist_drilldown {
+                    let x_artist = x_title + w_title + 8.0;
+                    let artist_clip = egui::Rect::from_min_size(egui::pos2(x_artist, rect.top()), Vec2::new(w_artist - 4.0, rect.height()));
+                    painter.with_clip_rect(artist_clip).text(
+                        egui::pos2(x_artist, cy),
+                        egui::Align2::LEFT_CENTER,
+                        &track.artist,
+                        egui::FontId::proportional(11.5),
+                        artist_color,
+                    );
+                }
+
+                // 6. Draw Column 4: Album (if not album drilldown)
+                if !is_album_drilldown {
+                    let x_album = if is_artist_drilldown {
+                        x_title + w_title + 8.0
+                    } else {
+                        x_title + w_title + 8.0 + w_artist + 8.0
+                    };
+                    let album_clip = egui::Rect::from_min_size(egui::pos2(x_album, rect.top()), Vec2::new(w_album - 4.0, rect.height()));
+                    painter.with_clip_rect(album_clip).text(
+                        egui::pos2(x_album, cy),
+                        egui::Align2::LEFT_CENTER,
+                        &track.album,
+                        egui::FontId::proportional(11.0),
+                        album_color,
+                    );
+                }
+
+                // 7. Draw Column 5: Time (Right-aligned)
+                if track.duration > 0 {
+                    let dur_str = format_duration(track.duration);
+                    painter.text(
+                        egui::pos2(rect.right() - 12.0, cy),
+                        egui::Align2::RIGHT_CENTER,
+                        dur_str,
+                        egui::FontId::proportional(11.0),
+                        time_color,
+                    );
                 }
 
                 if row_resp.clicked() || row_resp.double_clicked() {
