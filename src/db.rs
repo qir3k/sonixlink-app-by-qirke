@@ -147,7 +147,7 @@ impl LibraryDb {
     pub fn get_all_tracks(&self) -> Vec<TrackItem> {
         let query = "SELECT name AS title, artist, album, path, \
                      (CASE WHEN end_time > begin_time THEN (end_time - begin_time) / 1000 ELSE 0 END) AS duration, \
-                     ck_id AS track_num \
+                     COALESCE(NULLIF(dis_id, 0), NULLIF(ck_id, 0), 0) AS track_num \
                      FROM MEDIA_TABLE WHERE path <> '' ORDER BY sortkey, name LIMIT 5000";
         self.query_tracks(query)
     }
@@ -157,8 +157,8 @@ impl LibraryDb {
         let query = format!(
             "SELECT name AS title, artist, album, path, \
              (CASE WHEN end_time > begin_time THEN (end_time - begin_time) / 1000 ELSE 0 END) AS duration, \
-             ck_id AS track_num \
-             FROM MEDIA_TABLE WHERE path <> '' AND album = '{}' ORDER BY ck_id, sortkey, name LIMIT 2000",
+             COALESCE(NULLIF(dis_id, 0), NULLIF(ck_id, 0), 0) AS track_num \
+             FROM MEDIA_TABLE WHERE path <> '' AND album = '{}' ORDER BY COALESCE(NULLIF(dis_id, 0), 999), sortkey, name LIMIT 2000",
             safe_album
         );
         self.query_tracks(&query)
@@ -169,8 +169,8 @@ impl LibraryDb {
         let query = format!(
             "SELECT name AS title, artist, album, path, \
              (CASE WHEN end_time > begin_time THEN (end_time - begin_time) / 1000 ELSE 0 END) AS duration, \
-             ck_id AS track_num \
-             FROM MEDIA_TABLE WHERE path <> '' AND artist = '{}' ORDER BY album, ck_id, sortkey, name LIMIT 2000",
+             COALESCE(NULLIF(dis_id, 0), NULLIF(ck_id, 0), 0) AS track_num \
+             FROM MEDIA_TABLE WHERE path <> '' AND artist = '{}' ORDER BY album, COALESCE(NULLIF(dis_id, 0), 999), sortkey, name LIMIT 2000",
             safe_artist
         );
         self.query_tracks(&query)
@@ -181,7 +181,7 @@ impl LibraryDb {
         let query = format!(
             "SELECT name AS title, artist, album, path, \
              (CASE WHEN end_time > begin_time THEN (end_time - begin_time) / 1000 ELSE 0 END) AS duration, \
-             ck_id AS track_num \
+             COALESCE(NULLIF(dis_id, 0), NULLIF(ck_id, 0), 0) AS track_num \
              FROM MEDIA_TABLE WHERE path <> '' AND genre = '{}' ORDER BY artist, album, name LIMIT 2000",
             safe_genre
         );
@@ -193,7 +193,7 @@ impl LibraryDb {
         let query = format!(
             "SELECT name AS title, artist, album, path, \
              (CASE WHEN end_time > begin_time THEN (end_time - begin_time) / 1000 ELSE 0 END) AS duration, \
-             ck_id AS track_num \
+             COALESCE(NULLIF(dis_id, 0), NULLIF(ck_id, 0), 0) AS track_num \
              FROM MEDIA_TABLE WHERE path <> '' AND year = '{}' ORDER BY artist, album, name LIMIT 2000",
             safe_year
         );
@@ -203,7 +203,7 @@ impl LibraryDb {
     pub fn get_favourites(&self) -> Vec<TrackItem> {
         let query = "SELECT f.name AS title, f.artist, m.album, f.path, \
                      (CASE WHEN m.end_time > m.begin_time THEN (m.end_time - m.begin_time) / 1000 ELSE 0 END) AS duration, \
-                     m.ck_id AS track_num \
+                     COALESCE(NULLIF(m.dis_id, 0), NULLIF(m.ck_id, 0), 0) AS track_num \
                      FROM FAVORITE_TABLE f \
                      LEFT JOIN MEDIA_TABLE m ON m.path = f.path \
                      WHERE f.path <> '' ORDER BY f.rowid DESC";

@@ -18,6 +18,7 @@ gradle/.DS_Store
 Thumbs.db
 
 # Local tooling & agents
+.agent/
 .freebuff/
 freebuff/
 .kilo/

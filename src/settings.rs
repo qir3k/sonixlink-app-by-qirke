@@ -20,6 +20,12 @@ pub struct AppSettings {
     pub volume_step: u8,
     #[serde(default)]
     pub db_stamp: String,
+    #[serde(default = "default_col_widths")]
+    pub col_widths: [f32; 3],
+}
+
+pub fn default_col_widths() -> [f32; 3] {
+    [280.0, 180.0, 180.0]
 }
 
 fn default_host() -> String {
@@ -52,6 +58,7 @@ impl Default for AppSettings {
             device_fav_mark: default_fav_device(),
             volume_step: default_vol_step(),
             db_stamp: String::new(),
+            col_widths: default_col_widths(),
         }
     }
 }

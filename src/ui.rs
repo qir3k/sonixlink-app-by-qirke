@@ -15,6 +15,29 @@ pub struct StreamPage {
     pub title: String,
 }
 
+pub fn col_resize_separator(ui: &mut Ui, width: &mut f32) {
+    let (rect, resp) = ui.allocate_exact_size(Vec2::new(8.0, 16.0), egui::Sense::drag());
+    if resp.hovered() || resp.dragged() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal);
+    }
+    if resp.dragged() {
+        *width = (*width + resp.drag_delta().x).clamp(60.0, 700.0);
+    }
+    let center_x = rect.center().x;
+    let stroke_color = if resp.hovered() || resp.dragged() {
+        Color32::from_rgb(220, 220, 225)
+    } else {
+        BORDER_LIGHT
+    };
+    ui.painter().line_segment(
+        [
+            egui::pos2(center_x, rect.top() + 2.0),
+            egui::pos2(center_x, rect.bottom() - 2.0),
+        ],
+        Stroke::new(1.0, stroke_color),
+    );
+}
+
 pub struct SonixApp {
     pub client: SonixClient,
     pub settings: AppSettings,
@@ -652,30 +675,47 @@ impl SonixApp {
     }
 
     fn render_tracks_table(&mut self, ui: &mut Ui, accent: Color32) {
-        let avail_w = (ui.available_width() - 16.0).max(320.0);
-        let w_num = 32.0;
-        let w_time = 48.0;
-        let remaining = (avail_w - w_num - w_time).max(200.0);
-        let w_title = remaining * 0.42;
-        let w_artist = remaining * 0.29;
-        let w_album = remaining * 0.29;
+        let avail_w = (ui.available_width() - 12.0).max(320.0);
+        let w_num = 34.0;
+        let w_time = 52.0;
 
-        // Table Header
+        let mut w_title = self.settings.col_widths[0];
+        let mut w_artist = self.settings.col_widths[1];
+        let mut w_album = self.settings.col_widths[2];
+
+        // Table Header with Resizable Dividers
         Frame::new().fill(BG_PANEL).inner_margin(Vec2::new(8.0, 6.0)).corner_radius(4.0).show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.add_sized([w_num, 16.0], egui::Label::new(egui::RichText::new("#").size(10.0).strong().color(TEXT_MUTED)));
-                ui.add_sized([w_title, 16.0], egui::Label::new(egui::RichText::new("TITLE").size(10.0).strong().color(TEXT_MUTED)));
-                ui.add_sized([w_artist, 16.0], egui::Label::new(egui::RichText::new("ARTIST").size(10.0).strong().color(TEXT_MUTED)));
-                ui.add_sized([w_album, 16.0], egui::Label::new(egui::RichText::new("ALBUM").size(10.0).strong().color(TEXT_MUTED)));
-                ui.add_sized([w_time, 16.0], egui::Label::new(egui::RichText::new("TIME").size(10.0).strong().color(TEXT_MUTED)));
+                ui.add_sized([w_num, 16.0], egui::Label::new(egui::RichText::new("#").size(10.0).strong().color(TEXT_MUTED)).selectable(false));
+
+                ui.add_sized([w_title, 16.0], egui::Label::new(egui::RichText::new("TITLE").size(10.0).strong().color(TEXT_MUTED)).selectable(false));
+                col_resize_separator(ui, &mut w_title);
+
+                ui.add_sized([w_artist, 16.0], egui::Label::new(egui::RichText::new("ARTIST").size(10.0).strong().color(TEXT_MUTED)).selectable(false));
+                col_resize_separator(ui, &mut w_artist);
+
+                ui.add_sized([w_album, 16.0], egui::Label::new(egui::RichText::new("ALBUM").size(10.0).strong().color(TEXT_MUTED)).selectable(false));
+                col_resize_separator(ui, &mut w_album);
+
+                ui.add_sized([w_time, 16.0], egui::Label::new(egui::RichText::new("TIME").size(10.0).strong().color(TEXT_MUTED)).selectable(false));
             });
         });
+
+        if (w_title - self.settings.col_widths[0]).abs() > 0.5
+            || (w_artist - self.settings.col_widths[1]).abs() > 0.5
+            || (w_album - self.settings.col_widths[2]).abs() > 0.5
+        {
+            self.settings.col_widths = [w_title, w_artist, w_album];
+            self.settings.save();
+        }
 
         ui.add_space(4.0);
 
         let mut smartmix_seed = None;
         let mut queue_track = None;
+        let mut play_track = None;
         let query = self.search_query.to_lowercase();
+
         ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             for (idx, track) in self.tracks.iter().enumerate() {
                 if !query.is_empty() && !track.title.to_lowercase().contains(&query) && !track.artist.to_lowercase().contains(&query) {
@@ -686,53 +726,79 @@ impl SonixApp {
                 let is_current = self.current_state.as_ref().map(|s| s.path == track.path).unwrap_or(false);
 
                 let fill = if is_current {
-                    Color32::from_rgba_premultiplied(accent.r(), accent.g(), accent.b(), 35)
+                    Color32::from_rgba_premultiplied(accent.r(), accent.g(), accent.b(), 40)
                 } else {
                     row_bg
                 };
 
-                Frame::new().fill(fill).corner_radius(4.0).inner_margin(Vec2::new(8.0, 5.0)).show(ui, |ui| {
-                    let row = ui.horizontal(|ui| {
-                        let num_color = if is_current { accent } else { TEXT_MUTED };
-                        ui.add_sized([w_num, 18.0], egui::Label::new(egui::RichText::new(format!("{:02}", track.track_num.max(1))).size(11.0).color(num_color)));
+                let frame_resp = Frame::new()
+                    .fill(fill)
+                    .corner_radius(4.0)
+                    .inner_margin(Vec2::new(8.0, 4.0))
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            let num_str = if track.track_num > 0 { format!("{:02}", track.track_num) } else { format!("{:02}", idx + 1) };
+                            let num_color = if is_current { accent } else { TEXT_MUTED };
+                            ui.add_sized([w_num, 18.0], egui::Label::new(egui::RichText::new(num_str).size(11.0).color(num_color)).selectable(false));
 
-                        let title_color = if is_current { accent } else { TEXT_PRIMARY };
-                        let title_lbl = egui::Label::new(egui::RichText::new(&track.title).size(12.0).strong().color(title_color)).truncate();
-                        let title_resp = ui.add_sized([w_title, 18.0], title_lbl);
-                        title_resp.context_menu(|ui| {
-                            if ui.button("Toggle Favourite").clicked() {
-                                self.client.toggle_favorite(&track.path);
-                                ui.close();
-                            }
-                            if ui.button("Queue Next").clicked() {
-                                queue_track = Some(track.path.clone());
-                                ui.close();
-                            }
-                            if ui.button("✦ Start Smart Mix").clicked() {
-                                smartmix_seed = Some(track.path.clone());
-                                ui.close();
-                            }
+                            let title_color = if is_current { accent } else { TEXT_PRIMARY };
+                            ui.add_sized([w_title, 18.0], egui::Label::new(egui::RichText::new(&track.title).size(12.0).strong().color(title_color)).truncate().selectable(false));
+
+                            ui.add_space(8.0);
+                            ui.add_sized([w_artist, 18.0], egui::Label::new(egui::RichText::new(&track.artist).size(11.0).color(TEXT_SECONDARY)).truncate().selectable(false));
+
+                            ui.add_space(8.0);
+                            ui.add_sized([w_album, 18.0], egui::Label::new(egui::RichText::new(&track.album).size(11.0).color(TEXT_MUTED)).truncate().selectable(false));
+
+                            let dur_str = if track.duration > 0 { format_duration(track.duration) } else { "—".to_string() };
+                            ui.add_sized([w_time, 18.0], egui::Label::new(egui::RichText::new(dur_str).size(11.0).color(TEXT_MUTED)).selectable(false));
                         });
-
-                        ui.add_sized([w_artist, 18.0], egui::Label::new(egui::RichText::new(&track.artist).size(11.0).color(TEXT_SECONDARY)).truncate());
-                        ui.add_sized([w_album, 18.0], egui::Label::new(egui::RichText::new(&track.album).size(11.0).color(TEXT_MUTED)).truncate());
-                        ui.add_sized([w_time, 18.0], egui::Label::new(egui::RichText::new(format_duration(track.duration)).size(11.0).color(TEXT_MUTED)));
                     });
 
-                    if row.response.interact(egui::Sense::click()).double_clicked() {
-                        if let Some((ref cat, ref name)) = self.drilldown_category {
-                            if cat == "playlists" {
-                                self.client.command("play_path", &[("path", &track.path), ("list", "playlist"), ("value", name)]);
-                            } else {
-                                self.client.command("play_path", &[("path", &track.path)]);
-                            }
-                        } else {
-                            self.client.command("play_path", &[("path", &track.path)]);
-                        }
+                let row_resp = frame_resp.response.interact(egui::Sense::click());
+                if row_resp.hovered() && !is_current {
+                    ui.painter().rect_filled(frame_resp.response.rect, 4.0, BG_CARD_HOVER);
+                }
+                if is_current {
+                    ui.painter().rect_stroke(frame_resp.response.rect, 4.0, Stroke::new(1.0, Color32::from_rgba_premultiplied(accent.r(), accent.g(), accent.b(), 100)), egui::StrokeKind::Inside);
+                }
+
+                if row_resp.clicked() || row_resp.double_clicked() {
+                    play_track = Some(track.path.clone());
+                }
+
+                row_resp.context_menu(|ui| {
+                    if ui.button("▶ Play Now").clicked() {
+                        play_track = Some(track.path.clone());
+                        ui.close();
+                    }
+                    if ui.button("Toggle Favourite").clicked() {
+                        self.client.toggle_favorite(&track.path);
+                        ui.close();
+                    }
+                    if ui.button("Queue Next").clicked() {
+                        queue_track = Some(track.path.clone());
+                        ui.close();
+                    }
+                    if ui.button("✦ Start Smart Mix").clicked() {
+                        smartmix_seed = Some(track.path.clone());
+                        ui.close();
                     }
                 });
             }
         });
+
+        if let Some(path) = play_track {
+            if let Some((ref cat, ref name)) = self.drilldown_category {
+                if cat == "playlists" {
+                    self.client.command("play_path", &[("path", &path), ("list", "playlist"), ("value", name)]);
+                } else {
+                    self.client.command("play_path", &[("path", &path)]);
+                }
+            } else {
+                self.client.command("play_path", &[("path", &path)]);
+            }
+        }
 
         if let Some(p) = queue_track {
             self.client.queue_next(&[&p]);
@@ -760,14 +826,14 @@ impl SonixApp {
                 let painter = ui.painter();
 
                 let bg_color = if is_hovered {
-                    Color32::from_rgb(32, 35, 46)
+                    BG_CARD_HOVER
                 } else {
                     fill
                 };
 
                 painter.rect_filled(rect, 4.0, bg_color);
                 if is_hovered {
-                    painter.rect_stroke(rect, 4.0, Stroke::new(1.0, Color32::from_rgb(52, 58, 76)), egui::StrokeKind::Inside);
+                    painter.rect_stroke(rect, 4.0, Stroke::new(1.0, BORDER_LIGHT), egui::StrokeKind::Inside);
                 }
 
                 // Left: Name
@@ -906,17 +972,16 @@ impl SonixApp {
     // RIGHT PANEL (Now Playing)
     // -------------------------------------------------------------------------
     fn render_right_panel(&mut self, ui: &mut Ui, accent: Color32) {
-        ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-            ui.vertical_centered(|ui| {
-                // 1. Album Artwork
-                let art_size = (ui.available_width() - 10.0).clamp(160.0, 240.0);
+        ui.vertical_centered(|ui| {
+            // 1. Album Artwork (dynamically scaled to fit without scrolling)
+            let art_size = (ui.available_height() * 0.32).clamp(120.0, 185.0);
                 if let Some(ref tex) = self.art_texture {
                     ui.add(egui::Image::new(tex).fit_to_exact_size(Vec2::splat(art_size)).corner_radius(8.0));
                 } else {
                     self.draw_vinyl_placeholder(ui, art_size);
                 }
 
-                ui.add_space(12.0);
+                ui.add_space(6.0);
 
                 // 2. Track Title & Artist
                 let (title, artist, badge) = if let Some(ref s) = self.current_state {
@@ -983,7 +1048,7 @@ impl SonixApp {
                     });
                 });
 
-                ui.add_space(12.0);
+                ui.add_space(6.0);
 
                 // 4. Vector Transport Controls (All centered vertically)
                 ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
@@ -1025,7 +1090,7 @@ impl SonixApp {
                     }
                 });
 
-                ui.add_space(14.0);
+                ui.add_space(6.0);
 
                 // 5. Hardware DSP Quick-Pills Card
                 Frame::new()
@@ -1036,11 +1101,6 @@ impl SonixApp {
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.label(egui::RichText::new("HARDWARE DSP").size(8.5).strong().color(TEXT_MUTED));
-                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                if ui.add(egui::Button::new(egui::RichText::new("Tune").size(9.0).color(accent)).frame(false)).clicked() {
-                                    self.show_dsp = true;
-                                }
-                            });
                         });
 
                         ui.add_space(6.0);
@@ -1094,7 +1154,7 @@ impl SonixApp {
                         });
                     });
 
-                ui.add_space(14.0);
+                ui.add_space(6.0);
 
                 // 6. Modern Rounded Volume Slider
                 ui.horizontal(|ui| {
@@ -1113,7 +1173,6 @@ impl SonixApp {
                     ui.label(egui::RichText::new(format!("{}%", cur_vol)).size(10.0).color(TEXT_MUTED));
                 });
             });
-        });
     }
 
     // -------------------------------------------------------------------------
