@@ -274,6 +274,30 @@ class NowPlayingActivity : AppCompatActivity() {
             showFavourite(starred)
             send { it.setFavourite(path, starred) }
         }
+        views.smartmixButton.setOnClickListener {
+            val path = Session.state.path
+            if (path.isEmpty()) return@setOnClickListener
+            lifecycleScope.launch {
+                val mix = withContext(Dispatchers.IO) {
+                    Session.library?.generateSmartMix(path) ?: emptyList()
+                }
+                if (mix.isEmpty()) {
+                    com.google.android.material.snackbar.Snackbar.make(
+                        views.root,
+                        R.string.smartmix_not_enough,
+                        com.google.android.material.snackbar.Snackbar.LENGTH_SHORT
+                    ).show()
+                    return@launch
+                }
+                val paths = mix.map { it.path }
+                send { it.selection("queue_next", paths) }
+                com.google.android.material.snackbar.Snackbar.make(
+                    views.root,
+                    getString(R.string.smartmix_done, paths.size),
+                    com.google.android.material.snackbar.Snackbar.LENGTH_SHORT
+                ).show()
+            }
+        }
         views.queueButton.setOnClickListener {
             startActivity(Intent(this, QueueActivity::class.java))
         }
@@ -313,6 +337,13 @@ class NowPlayingActivity : AppCompatActivity() {
         views.eqButton.setOnLongClickListener(showDspOnLongClick)
         views.peqButton.setOnLongClickListener(showDspOnLongClick)
         views.peqProfileButton.setOnLongClickListener(showDspOnLongClick)
+        views.gainButton.setOnClickListener {
+            val next = !shownGain(Session.state)
+            Session.heldGain.set(next)
+            updateDspPills()
+            send { it.setGain(next) }
+        }
+        views.gainButton.setOnLongClickListener(showDspOnLongClick)
 
         views.progressSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar, value: Int, fromUser: Boolean) {
@@ -389,6 +420,7 @@ class NowPlayingActivity : AppCompatActivity() {
     private fun shownEq(state: PlayerState): Boolean = Session.heldEq.resolve(state.eq)
     private fun shownPeq(state: PlayerState): Boolean = Session.heldPeq.resolve(state.peq)
     private fun shownPeqProfile(state: PlayerState): Int = Session.heldPeqProfile.resolve(state.peqProfile)
+    private fun shownGain(state: PlayerState): Boolean = Session.heldGain.resolve(state.highGain)
 
     private fun updateDspPills(state: PlayerState = Session.state) {
         val msebOn = shownMseb(state)
@@ -405,6 +437,10 @@ class NowPlayingActivity : AppCompatActivity() {
             views.peqProfileButton.text = profileText
         }
         Accent.dspPill(views.peqProfileButton, peqOn, enabled = true)
+
+        val highGain = shownGain(state)
+        views.gainButton.text = if (highGain) getString(R.string.gain_high) else getString(R.string.gain_low)
+        Accent.dspPill(views.gainButton, highGain)
     }
 
     private fun showDspDialog() {
@@ -438,6 +474,12 @@ class NowPlayingActivity : AppCompatActivity() {
                 Session.heldPeqProfile.set(p)
                 updateDspPills()
                 send { it.setPeqProfile(p) }
+            },
+            gain = shownGain(Session.state),
+            onGainChanged = { high ->
+                Session.heldGain.set(high)
+                updateDspPills()
+                send { it.setGain(high) }
             }
         )
     }
@@ -484,6 +526,7 @@ class NowPlayingActivity : AppCompatActivity() {
         views.playButton.setImageResource(if (state.isPlaying) R.drawable.ic_pause else R.drawable.ic_play)
         showMode(Session.heldMode.resolve(state.mode))
         views.modeButton.visibility = if (state.podcast) View.GONE else View.VISIBLE
+        views.smartmixButton.isEnabled = state.hasTrack
         showFavourite(shownFavourite(state))
 
         showProgress()
@@ -523,6 +566,7 @@ class NowPlayingActivity : AppCompatActivity() {
     private fun showSpeed(state: PlayerState) {
         views.speedButton.visibility = if (state.podcast) View.VISIBLE else View.GONE
         views.modeButton.visibility = if (state.podcast) View.GONE else View.VISIBLE
+        views.smartmixButton.isEnabled = state.hasTrack
         if (!state.podcast) return
         val known = speedChoices.firstOrNull { it.first == state.podcastSpeed }
         setText(

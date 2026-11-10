@@ -492,14 +492,32 @@ class BrowseFragment : Fragment(), MainActivity.LibraryListener {
             getString(R.string.play_random),
             getString(R.string.play_sequence),
             getString(R.string.play_random_track),
+            getString(R.string.smartmix),
         )
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setItems(choices) { _, which ->
                 when (which) {
                     0 -> main.perform { it.playAll(list, value, "shuffle") }
                     1 -> main.perform { it.playAll(list, value, "sequence") }
-                    else -> main.perform(done = getString(R.string.done_queue)) {
+                    2 -> main.perform(done = getString(R.string.done_queue)) {
                         it.playAll(list, value, "random")
+                    }
+                    3 -> {
+                        val currentRows = adapter.currentList
+                        val seedPath = currentRows.firstOrNull { it.isTrack }?.path.orEmpty()
+                        viewLifecycleOwner.lifecycleScope.launch {
+                            val mix = withContext(Dispatchers.IO) {
+                                Session.library?.generateSmartMix(seedPath) ?: emptyList()
+                            }
+                            if (mix.isEmpty()) {
+                                main.say(getString(R.string.smartmix_not_enough))
+                                return@launch
+                            }
+                            val mixPaths = mix.map { it.path }
+                            main.perform(done = getString(R.string.smartmix_done, mixPaths.size)) {
+                                it.selection("queue_next", mixPaths)
+                            }
+                        }
                     }
                 }
             }
@@ -551,6 +569,23 @@ class BrowseFragment : Fragment(), MainActivity.LibraryListener {
                 Selection.Action.QUEUE -> {
                     stopSelection()
                     main.perform(done = getString(R.string.done_queue)) { it.selection("queue_next", paths) }
+                }
+                Selection.Action.SMARTMIX -> {
+                    stopSelection()
+                    val seed = paths.firstOrNull().orEmpty()
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        val mix = withContext(Dispatchers.IO) {
+                            Session.library?.generateSmartMix(seed) ?: emptyList()
+                        }
+                        if (mix.isEmpty()) {
+                            main.say(getString(R.string.smartmix_not_enough))
+                            return@launch
+                        }
+                        val mixPaths = mix.map { it.path }
+                        main.perform(done = getString(R.string.smartmix_done, mixPaths.size)) {
+                            it.selection("queue_next", mixPaths)
+                        }
+                    }
                 }
                 Selection.Action.FAVOURITES_ADD -> {
                     stopSelection()

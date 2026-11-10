@@ -153,6 +153,7 @@ data class PlayerState(
     val peq: Boolean = false,
     /** Selected PEQ profile (1 or 2). */
     val peqProfile: Int = 1,
+    val highGain: Boolean = false,
 ) {
     val isPlaying: Boolean get() = playState == 1
     val hasTrack: Boolean get() = title.isNotEmpty() || path.isNotEmpty()

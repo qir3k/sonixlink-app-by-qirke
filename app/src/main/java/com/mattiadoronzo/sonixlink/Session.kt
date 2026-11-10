@@ -51,6 +51,7 @@ object Session {
     val heldEq = Held<Boolean>()
     val heldPeq = Held<Boolean>()
     val heldPeqProfile = Held<Int>()
+    val heldGain = Held<Boolean>()
 
     /**
      * The accent chosen on the player, as an ARGB colour, used to tint the app.

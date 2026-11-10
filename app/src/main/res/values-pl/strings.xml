@@ -177,4 +177,14 @@
     <string name="cd_eq">Przełącz korektor</string>
     <string name="cd_peq">Przełącz korektor parametryczny</string>
     <string name="cd_peq_profile">Przełącz profil PEQ</string>
+    <string name="smartmix">Smart Mix</string>
+    <string name="smartmix_start">Uruchom Smart Mix</string>
+    <string name="smartmix_done">Smart Mix dodany do kolejki (%1$d utworów)</string>
+    <string name="smartmix_not_enough">Zbyt mało podobnych utworów do utworzenia Smart Mix</string>
+    <string name="gain">Wzmocnienie</string>
+    <string name="gain_low">Wzmoc: Niskie</string>
+    <string name="gain_high">Wzmoc: Wysokie</string>
+    <string name="gain_title">Wzmocnienie wzmacniacza</string>
+    <string name="gain_desc">Niskie / Wysokie wzmocnienie wyjściowe mocy</string>
+    <string name="cd_gain">Przełącz wzmocnienie wzmacniacza</string>
 </resources>

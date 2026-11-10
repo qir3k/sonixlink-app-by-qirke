@@ -423,4 +423,145 @@ class Library(context: Context) {
             arrayOf(like, like, like),
         )
     }
+
+    /**
+     * Generates a 25-track Smart Mix from a seed track based on genre, artist, and era clustering
+     * with artist spacing rules (max 3 by seed artist, max 2 by other artists, no back-to-back same artist).
+     */
+    fun generateSmartMix(seedPath: String, targetCount: Int = 25): List<Row> = synchronized(gate) {
+        val database = db ?: return@synchronized emptyList()
+        try {
+            var actualSeedPath = seedPath
+            var seedTitle = ""
+            var seedArtist = ""
+            var seedAlbum = ""
+            var seedGenre = ""
+            var seedYear = 0
+            var seedMtime = 0L
+            var seedSize = 0L
+
+            val seedSql = if (seedPath.isNotEmpty()) {
+                "SELECT name, artist, album, genre, year, mtime, size FROM MEDIA_TABLE WHERE path = ? LIMIT 1"
+            } else {
+                "SELECT name, artist, album, genre, year, mtime, size, path FROM MEDIA_TABLE WHERE path <> '' LIMIT 1"
+            }
+            val seedArgs = if (seedPath.isNotEmpty()) arrayOf(seedPath) else emptyArray()
+
+            database.rawQuery(seedSql, seedArgs).use { cursor ->
+                if (cursor.moveToFirst()) {
+                    seedTitle = cursor.getString(0).orEmpty()
+                    seedArtist = cursor.getString(1).orEmpty()
+                    seedAlbum = cursor.getString(2).orEmpty()
+                    seedGenre = cursor.getString(3).orEmpty()
+                    seedYear = cursor.getInt(4)
+                    seedMtime = cursor.getLong(5)
+                    seedSize = cursor.getLong(6)
+                    if (seedPath.isEmpty() && cursor.columnCount > 7) {
+                        actualSeedPath = cursor.getString(7).orEmpty()
+                    }
+                }
+            }
+
+            if (seedTitle.isEmpty() && actualSeedPath.isEmpty()) return@synchronized emptyList()
+
+            data class Cand(val row: Row, val artist: String, var score: Float)
+            val candidates = ArrayList<Cand>()
+
+            val candSql = "SELECT name, artist, album, genre, year, path, mtime, size FROM MEDIA_TABLE WHERE path <> ? AND path <> '' LIMIT 2500"
+            database.rawQuery(candSql, arrayOf(actualSeedPath)).use { cursor ->
+                val rnd = java.util.Random()
+                while (cursor.moveToNext()) {
+                    val name = cursor.getString(0).orEmpty()
+                    val artist = cursor.getString(1).orEmpty()
+                    val album = cursor.getString(2).orEmpty()
+                    val genre = cursor.getString(3).orEmpty()
+                    val year = cursor.getInt(4)
+                    val path = cursor.getString(5).orEmpty()
+                    val mtime = cursor.getLong(6)
+                    val size = cursor.getLong(7)
+
+                    var score = 0f
+                    if (seedArtist.isNotEmpty() && artist.equals(seedArtist, ignoreCase = true)) {
+                        score += 50f
+                    }
+                    if (seedGenre.isNotEmpty() && genre.isNotEmpty() && genre.equals(seedGenre, ignoreCase = true)) {
+                        score += 40f
+                    }
+                    if (seedYear > 0 && year > 0) {
+                        val diff = kotlin.math.abs(year - seedYear)
+                        if (diff <= 2) score += 30f
+                        else if (diff <= 5) score += 20f
+                        else if (diff <= 10) score += 10f
+                    }
+                    if (score > 0f) {
+                        score += rnd.nextInt(15)
+                        candidates.add(
+                            Cand(
+                                row = Row(
+                                    title = name,
+                                    subtitle = artist,
+                                    path = path,
+                                    album = album,
+                                    artPath = path,
+                                    artMtime = mtime,
+                                    artSize = size,
+                                ),
+                                artist = artist,
+                                score = score
+                            )
+                        )
+                    }
+                }
+            }
+
+            candidates.sortByDescending { it.score }
+
+            val mix = ArrayList<Row>()
+            mix.add(
+                Row(
+                    title = seedTitle,
+                    subtitle = seedArtist,
+                    path = actualSeedPath,
+                    album = seedAlbum,
+                    artPath = actualSeedPath,
+                    artMtime = seedMtime,
+                    artSize = seedSize,
+                )
+            )
+
+            val artistCounts = HashMap<String, Int>()
+            if (seedArtist.isNotEmpty()) {
+                artistCounts[seedArtist.lowercase()] = 1
+            }
+
+            val pool = ArrayList(candidates.take(200))
+            while (pool.isNotEmpty() && mix.size < targetCount) {
+                val lastArtist = mix.last().subtitle.lowercase()
+                var chosenIdx = -1
+
+                for (i in pool.indices) {
+                    val artKey = pool[i].artist.lowercase()
+                    if (artKey == lastArtist && pool.size > 4) {
+                        continue
+                    }
+                    val count = artistCounts[artKey] ?: 0
+                    val maxAllowed = if (artKey == seedArtist.lowercase()) 3 else 2
+                    if (count >= maxAllowed && pool.size > 8) {
+                        continue
+                    }
+                    chosenIdx = i
+                    break
+                }
+
+                val chosen = if (chosenIdx >= 0) pool.removeAt(chosenIdx) else pool.removeAt(0)
+                val artKey = chosen.artist.lowercase()
+                artistCounts[artKey] = (artistCounts[artKey] ?: 0) + 1
+                mix.add(chosen.row)
+            }
+
+            mix
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 }

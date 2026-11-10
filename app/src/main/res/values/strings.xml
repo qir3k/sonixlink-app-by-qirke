@@ -216,4 +216,14 @@
     <string name="cd_eq">Toggle Equalizer</string>
     <string name="cd_peq">Toggle Parametric Equalizer</string>
     <string name="cd_peq_profile">Switch PEQ Profile</string>
+    <string name="smartmix">Smart Mix</string>
+    <string name="smartmix_start">Start Smart Mix</string>
+    <string name="smartmix_done">Smart Mix queued (%1$d tracks)</string>
+    <string name="smartmix_not_enough">Not enough similar tracks for a Smart Mix</string>
+    <string name="gain">Gain</string>
+    <string name="gain_low">Gain: Low</string>
+    <string name="gain_high">Gain: High</string>
+    <string name="gain_title">Amplifier Gain</string>
+    <string name="gain_desc">Low / High amplifier output power</string>
+    <string name="cd_gain">Toggle Amplifier Gain</string>
 </resources>

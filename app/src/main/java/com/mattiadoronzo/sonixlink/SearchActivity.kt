@@ -368,6 +368,7 @@ class SearchActivity : AppCompatActivity() {
                     perform(getString(R.string.done_playlist)) { it.selection("playlist_add", paths, name) }
                 }
                 Selection.Action.PLAYLIST_REMOVE -> Unit
+                Selection.Action.SMARTMIX -> Unit
             }
         }
     }

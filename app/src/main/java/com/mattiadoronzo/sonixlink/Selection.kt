@@ -13,7 +13,7 @@ import kotlinx.coroutines.withContext
  */
 object Selection {
 
-    enum class Action { QUEUE, FAVOURITES_ADD, FAVOURITES_REMOVE, PLAYLIST_ADD, PLAYLIST_REMOVE }
+    enum class Action { QUEUE, FAVOURITES_ADD, FAVOURITES_REMOVE, PLAYLIST_ADD, PLAYLIST_REMOVE, SMARTMIX }
 
     /**
      * The chosen rows as tracks, in the list's order and each once: a record,

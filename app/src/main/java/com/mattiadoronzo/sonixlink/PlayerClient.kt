@@ -140,6 +140,7 @@ class PlayerClient(val host: String, val port: Int = DEFAULT_PORT) {
             eq = json.optBoolean("eq", false),
             peq = json.optBoolean("peq", false),
             peqProfile = json.optInt("peq_profile", 1),
+            highGain = json.optBoolean("gain_high", json.optBoolean("high_gain", json.optString("gain") == "high")),
         )
     }
 
@@ -187,6 +188,10 @@ class PlayerClient(val host: String, val port: Int = DEFAULT_PORT) {
     fun togglePeq() = command("do" to "peq")
 
     /** Selects PEQ profile 1 or 2, or cycles to next. */
+    /** Sets amplifier gain (high or low). */
+    fun setGain(high: Boolean) = command("do" to "gain", "value" to if (high) "high" else "low")
+    fun toggleGain() = command("do" to "gain", "value" to "toggle")
+
     fun setPeqProfile(profile: Int) =
         command("do" to "peq_profile", "value" to profile.coerceIn(1, 2).toString())
     fun nextPeqProfile() = command("do" to "peq_profile", "value" to "next")

@@ -1,6 +1,6 @@
 [package]
 name = "sonixlink"
-version = "1.3.9"
+version = "1.3.10"
 edition = "2021"
 authors = ["qirke"]
 description = "SonixLink Desktop - Ultra-Fast Modern Remote Player for Windows 64-bit"

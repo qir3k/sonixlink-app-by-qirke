@@ -213,10 +213,12 @@ object AppearancePreferences {
         eq: Boolean,
         peq: Boolean,
         peqProfile: Int,
+        gain: Boolean = false,
         onMsebChanged: (Boolean) -> Unit,
         onEqChanged: (Boolean) -> Unit,
         onPeqChanged: (Boolean) -> Unit,
-        onPeqProfileChanged: (Int) -> Unit
+        onPeqProfileChanged: (Int) -> Unit,
+        onGainChanged: (Boolean) -> Unit = {}
     ) {
         val view = LayoutInflater.from(activity).inflate(R.layout.dialog_dsp, null)
         val msebRow = view.findViewById<View>(R.id.msebRow)
@@ -230,6 +232,16 @@ object AppearancePreferences {
         val peqProfile1 = view.findViewById<android.widget.RadioButton>(R.id.peqProfile1)
         val peqProfile2 = view.findViewById<android.widget.RadioButton>(R.id.peqProfile2)
 
+                val gainRow = view.findViewById<View>(R.id.gainRow)
+        val gainSwitch = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.gainSwitch)
+        if (gainSwitch != null) {
+            gainSwitch.isChecked = gain
+            gainRow?.setOnClickListener {
+                val next = !gainSwitch.isChecked
+                gainSwitch.isChecked = next
+                onGainChanged(next)
+            }
+        }
         msebSwitch.isChecked = mseb
         eqSwitch.isChecked = eq
         peqSwitch.isChecked = peq

@@ -1,19 +1,19 @@
 use eframe::egui::Color32;
 
-pub const BG_BASE: Color32 = Color32::from_rgb(12, 13, 16);
-pub const BG_PANEL: Color32 = Color32::from_rgb(19, 20, 24);
-pub const BG_CARD: Color32 = Color32::from_rgb(26, 28, 35);
-pub const BG_CARD_HOVER: Color32 = Color32::from_rgb(34, 37, 48);
-pub const BG_FIELD: Color32 = Color32::from_rgb(32, 35, 45);
-pub const BORDER: Color32 = Color32::from_rgb(36, 39, 51);
-pub const BORDER_LIGHT: Color32 = Color32::from_rgb(50, 55, 71);
-pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(255, 255, 255);
-pub const TEXT_SECONDARY: Color32 = Color32::from_rgb(160, 166, 181);
-pub const TEXT_MUTED: Color32 = Color32::from_rgb(96, 102, 117);
+pub const BG_BASE: Color32 = Color32::from_rgb(13, 14, 17);
+pub const BG_PANEL: Color32 = Color32::from_rgb(19, 20, 23);
+pub const BG_CARD: Color32 = Color32::from_rgb(26, 27, 31);
+pub const BG_CARD_HOVER: Color32 = Color32::from_rgb(34, 35, 41);
+pub const BG_FIELD: Color32 = Color32::from_rgb(28, 29, 34);
+pub const BORDER: Color32 = Color32::from_rgb(38, 39, 45);
+pub const BORDER_LIGHT: Color32 = Color32::from_rgb(52, 53, 61);
+pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(245, 246, 248);
+pub const TEXT_SECONDARY: Color32 = Color32::from_rgb(155, 157, 166);
+pub const TEXT_MUTED: Color32 = Color32::from_rgb(98, 100, 109);
 pub const STATUS_GREEN: Color32 = Color32::from_rgb(46, 204, 113);
 pub const STATUS_RED: Color32 = Color32::from_rgb(231, 76, 60);
-pub const ROW_EVEN: Color32 = Color32::from_rgb(16, 17, 22);
-pub const ROW_ODD: Color32 = Color32::from_rgb(20, 22, 28);
+pub const ROW_EVEN: Color32 = Color32::from_rgb(15, 16, 19);
+pub const ROW_ODD: Color32 = Color32::from_rgb(18, 19, 23);
 pub const DEFAULT_ACCENT: Color32 = Color32::from_rgb(255, 140, 0); // #FF8C00
 
 pub fn parse_hex_color(hex: &str) -> Color32 {

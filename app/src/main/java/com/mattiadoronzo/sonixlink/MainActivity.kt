@@ -719,11 +719,16 @@ class MainActivity : AppCompatActivity() {
             onPeqProfileChanged = { p ->
                 Session.heldPeqProfile.set(p)
                 send { it.setPeqProfile(p) }
+            },
+            gain = Session.heldGain.resolve(Session.state.highGain),
+            onGainChanged = { high ->
+                Session.heldGain.set(high)
+                send { it.setGain(high) }
             }
         )
     }
 
-    private fun say(message: String) {
+    fun say(message: String) {
         Snackbar.make(views.root, message, Snackbar.LENGTH_LONG).show()
     }
 }

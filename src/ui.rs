@@ -193,6 +193,7 @@ impl SonixApp {
                 "artists" => self.tracks = self.db.get_tracks_by_artist(name),
                 "genres" => self.tracks = self.db.get_tracks_by_genre(name),
                 "years" => self.tracks = self.db.get_tracks_by_year(name),
+                "playlists" => self.tracks = self.db.get_tracks_by_playlist(name),
                 _ => self.tracks = self.db.get_all_tracks(),
             }
             return;
@@ -201,6 +202,11 @@ impl SonixApp {
         match self.current_nav.as_str() {
             "tracks" => self.tracks = self.db.get_all_tracks(),
             "favourites" => self.tracks = self.db.get_favourites(),
+            "playlists" => self.simple_items = self.db.get_playlists(),
+            "smartmix" => {
+                let seed = self.current_state.as_ref().map(|s| s.path.as_str()).unwrap_or("");
+                self.tracks = self.db.generate_smartmix(seed);
+            }
             "albums" => self.simple_items = self.db.get_albums(),
             "artists" => self.simple_items = self.db.get_artists(),
             "genres" => self.simple_items = self.db.get_genres(),
@@ -320,7 +326,7 @@ impl eframe::App for SonixApp {
             self.current_state = Some(state);
         }
 
-        if first_connect && self.tracks.is_empty() {
+        if first_connect {
             self.trigger_sync_db();
         }
 
@@ -457,6 +463,8 @@ impl SonixApp {
                     ui.label(egui::RichText::new("COLLECTION").color(TEXT_MUTED).size(9.0).strong());
                     ui.add_space(2.0);
                     self.nav_button(ui, "favourites", "Favourites", accent);
+                    self.nav_button(ui, "playlists", "Playlists", accent);
+                    self.nav_button(ui, "smartmix", "✦ Smart Mix", accent);
 
                     ui.add_space(10.0);
                     ui.label(egui::RichText::new("ONLINE").color(TEXT_MUTED).size(9.0).strong());
@@ -502,7 +510,7 @@ impl SonixApp {
     // CENTER PANEL (Main View)
     // -------------------------------------------------------------------------
     fn render_center_panel(&mut self, ui: &mut Ui, accent: Color32) {
-        // Drill-down header if viewing songs for a specific Album, Artist, Genre, or Year
+        // Drill-down header if viewing songs for a specific Album, Artist, Genre, Year, or Playlist
         if let Some((ref cat, ref name)) = self.drilldown_category.clone() {
             let mut back_clicked = false;
             let cat_label = match cat.as_str() {
@@ -510,6 +518,7 @@ impl SonixApp {
                 "artists" => "Artists",
                 "genres" => "Genres",
                 "years" => "Years",
+                "playlists" => "Playlists",
                 _ => "Library",
             };
 
@@ -525,13 +534,21 @@ impl SonixApp {
                     ui.spacing_mut().item_spacing = Vec2::new(8.0, 0.0);
                     if header_pill_button(ui, "▶", "Play All", true, accent).clicked() {
                         if let Some(first) = self.tracks.first() {
-                            self.client.command("play_path", &[("path", &first.path)]);
+                            if cat == "playlists" {
+                                self.client.command("play_path", &[("path", &first.path), ("list", "playlist"), ("value", name)]);
+                            } else {
+                                self.client.command("play_path", &[("path", &first.path)]);
+                            }
                         }
                     }
                     if header_pill_button(ui, "⇄", "Shuffle", false, accent).clicked() {
                         self.client.command("mode", &[("value", "shuffle")]);
                         if let Some(first) = self.tracks.first() {
-                            self.client.command("play_path", &[("path", &first.path)]);
+                            if cat == "playlists" {
+                                self.client.command("play_path", &[("path", &first.path), ("list", "playlist"), ("value", name)]);
+                            } else {
+                                self.client.command("play_path", &[("path", &first.path)]);
+                            }
                         }
                     }
                 });
@@ -561,6 +578,8 @@ impl SonixApp {
             let title = match self.current_nav.as_str() {
                 "tracks" => "All Tracks",
                 "favourites" => "Favourites",
+                "playlists" => "Playlists",
+                "smartmix" => "✦ Smart Mix",
                 "albums" => "Albums",
                 "artists" => "Artists",
                 "genres" => "Genres",
@@ -573,6 +592,8 @@ impl SonixApp {
             let count_str = match self.current_nav.as_str() {
                 "tracks" => format!("{} tracks", self.tracks.len()),
                 "favourites" => format!("{} favourites", self.tracks.len()),
+                "playlists" => format!("{} playlists", self.simple_items.len()),
+                "smartmix" => format!("{} tracks in mix", self.tracks.len()),
                 "albums" => format!("{} albums", self.simple_items.len()),
                 "artists" => format!("{} artists", self.simple_items.len()),
                 "streaming" => format!("{} services", self.stream_services.len()),
@@ -582,7 +603,7 @@ impl SonixApp {
 
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.spacing_mut().item_spacing = Vec2::new(8.0, 0.0);
-                if header_pill_button(ui, "▶", "Play All", true, accent).clicked() {
+                if header_pill_button(ui, "▶", if self.current_nav == "smartmix" { "Play Mix" } else { "Play All" }, true, accent).clicked() {
                     if let Some(first) = self.tracks.first() {
                         self.client.command("play_path", &[("path", &first.path)]);
                     }
@@ -591,6 +612,18 @@ impl SonixApp {
                     self.client.command("mode", &[("value", "shuffle")]);
                     if let Some(first) = self.tracks.first() {
                         self.client.command("play_path", &[("path", &first.path)]);
+                    }
+                }
+                if self.current_nav == "smartmix" {
+                    if header_pill_button(ui, "＋", "Save Playlist", false, accent).clicked() {
+                        let paths: Vec<&str> = self.tracks.iter().map(|t| t.path.as_str()).collect();
+                        let seed_title = self.tracks.first().map(|t| t.title.as_str()).unwrap_or("Mix");
+                        let pl_name = format!("Smart Mix - {}", seed_title);
+                        self.client.save_playlist(&pl_name, &paths);
+                    }
+                    if header_pill_button(ui, "⟳", "Re-mix", false, accent).clicked() {
+                        let seed = self.current_state.as_ref().map(|s| s.path.as_str()).unwrap_or("");
+                        self.tracks = self.db.generate_smartmix(seed);
                     }
                 }
             });
@@ -611,7 +644,7 @@ impl SonixApp {
         // 3. Body View: Streaming vs Table
         if self.current_nav == "streaming" {
             self.render_streaming_view(ui, accent);
-        } else if self.current_nav == "tracks" || self.current_nav == "favourites" {
+        } else if self.current_nav == "tracks" || self.current_nav == "favourites" || self.current_nav == "smartmix" {
             self.render_tracks_table(ui, accent);
         } else {
             self.render_simple_table(ui, accent);
@@ -640,6 +673,8 @@ impl SonixApp {
 
         ui.add_space(4.0);
 
+        let mut smartmix_seed = None;
+        let mut queue_track = None;
         let query = self.search_query.to_lowercase();
         ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             for (idx, track) in self.tracks.iter().enumerate() {
@@ -669,6 +704,14 @@ impl SonixApp {
                                 self.client.toggle_favorite(&track.path);
                                 ui.close();
                             }
+                            if ui.button("Queue Next").clicked() {
+                                queue_track = Some(track.path.clone());
+                                ui.close();
+                            }
+                            if ui.button("✦ Start Smart Mix").clicked() {
+                                smartmix_seed = Some(track.path.clone());
+                                ui.close();
+                            }
                         });
 
                         ui.add_sized([w_artist, 18.0], egui::Label::new(egui::RichText::new(&track.artist).size(11.0).color(TEXT_SECONDARY)).truncate());
@@ -677,11 +720,29 @@ impl SonixApp {
                     });
 
                     if row.response.interact(egui::Sense::click()).double_clicked() {
-                        self.client.command("play_path", &[("path", &track.path)]);
+                        if let Some((ref cat, ref name)) = self.drilldown_category {
+                            if cat == "playlists" {
+                                self.client.command("play_path", &[("path", &track.path), ("list", "playlist"), ("value", name)]);
+                            } else {
+                                self.client.command("play_path", &[("path", &track.path)]);
+                            }
+                        } else {
+                            self.client.command("play_path", &[("path", &track.path)]);
+                        }
                     }
                 });
             }
         });
+
+        if let Some(p) = queue_track {
+            self.client.queue_next(&[&p]);
+        }
+        if let Some(seed) = smartmix_seed {
+            self.current_nav = "smartmix".to_string();
+            self.drilldown_category = None;
+            self.search_query.clear();
+            self.tracks = self.db.generate_smartmix(&seed);
+        }
     }
 
     fn render_simple_table(&mut self, ui: &mut Ui, accent: Color32) {
@@ -882,7 +943,22 @@ impl SonixApp {
                         });
                 }
 
-                ui.add_space(10.0);
+                ui.add_space(8.0);
+                if ui.add(
+                    egui::Button::new(egui::RichText::new("✦ Smart Mix").size(10.5).color(accent))
+                        .fill(BG_CARD)
+                        .stroke(Stroke::new(1.0, accent))
+                        .corner_radius(12.0)
+                        .min_size(Vec2::new(90.0, 24.0))
+                ).clicked() {
+                    let seed = self.current_state.as_ref().map(|s| s.path.as_str()).unwrap_or("");
+                    self.current_nav = "smartmix".to_string();
+                    self.drilldown_category = None;
+                    self.search_query.clear();
+                    self.tracks = self.db.generate_smartmix(seed);
+                }
+
+                ui.add_space(8.0);
 
                 // 3. Rounded Seekbar & Timestamps
                 let total_sec = self.current_state.as_ref().map(|s| s.duration).unwrap_or(0);
@@ -997,12 +1073,23 @@ impl SonixApp {
                             let prof = self.current_state.as_ref().map(|s| s.peq_profile).unwrap_or(1);
                             let p_label = format!("P{}", prof);
                             // Only illuminated when peq_on is true!
-                            if dsp_pill_button(ui, &p_label, peq_on, accent, 38.0, 22.0).clicked() {
+                            if dsp_pill_button(ui, &p_label, peq_on, accent, 32.0, 22.0).clicked() {
                                 let next_p = if prof == 1 { 2 } else { 1 };
                                 if let Some(ref mut s) = self.current_state {
                                     s.peq_profile = next_p;
                                 }
                                 self.client.set_peq_profile(next_p);
+                            }
+
+                            let high_gain = self.current_state.as_ref().map(|s| s.is_high_gain()).unwrap_or(false);
+                            let gain_lbl = if high_gain { "HIGH" } else { "LOW" };
+                            if dsp_pill_button(ui, gain_lbl, high_gain, accent, 42.0, 22.0).clicked() {
+                                if let Some(ref mut s) = self.current_state {
+                                    s.high_gain = Some(!high_gain);
+                                    s.gain_high = Some(!high_gain);
+                                    s.gain = Some(if !high_gain { "high".into() } else { "low".into() });
+                                }
+                                self.client.toggle_gain();
                             }
                         });
                     });
@@ -1224,6 +1311,30 @@ impl SonixApp {
                             }
                         });
                     });
+
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new("Amplifier Gain:").strong().color(TEXT_PRIMARY));
+                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            let high_gain = self.current_state.as_ref().map(|s| s.is_high_gain()).unwrap_or(false);
+                            if ui.selectable_label(high_gain, "High (+6dB)").clicked() {
+                                if let Some(ref mut s) = self.current_state {
+                                    s.high_gain = Some(true);
+                                    s.gain_high = Some(true);
+                                    s.gain = Some("high".into());
+                                }
+                                self.client.set_gain(true);
+                            }
+                            if ui.selectable_label(!high_gain, "Low (0dB)").clicked() {
+                                if let Some(ref mut s) = self.current_state {
+                                    s.high_gain = Some(false);
+                                    s.gain_high = Some(false);
+                                    s.gain = Some("low".into());
+                                }
+                                self.client.set_gain(false);
+                            }
+                        });
+                    });
                 });
 
                 ui.add_space(10.0);
@@ -1250,6 +1361,8 @@ impl SonixApp {
                         self.client.host = self.manual_host_input.clone();
                         self.settings.last_host = self.manual_host_input.clone();
                         self.settings.save();
+                        self.current_state = None;
+                        self.trigger_sync_db();
                         self.show_devices = false;
                     }
                 });

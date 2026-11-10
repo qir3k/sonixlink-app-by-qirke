@@ -54,6 +54,12 @@ pub struct PlayerState {
     pub queue_position: i32,
     #[serde(default)]
     pub queue_count: i32,
+    #[serde(default)]
+    pub gain: Option<String>,
+    #[serde(default)]
+    pub gain_high: Option<bool>,
+    #[serde(default)]
+    pub high_gain: Option<bool>,
 }
 
 fn default_mode() -> String { "normal".to_string() }
@@ -63,6 +69,12 @@ fn default_accent() -> String { "#FF8C00".to_string() }
 fn default_peq_profile() -> u8 { 1 }
 
 impl PlayerState {
+    pub fn is_high_gain(&self) -> bool {
+        self.gain_high.unwrap_or(false)
+            || self.high_gain.unwrap_or(false)
+            || self.gain.as_deref() == Some("high")
+    }
+
     pub fn is_playing(&self) -> bool {
         self.state == 1
     }
@@ -183,6 +195,69 @@ impl SonixClient {
 
         let body = response[header_end + 4..].to_vec();
         Ok(body)
+    }
+
+    fn raw_http_post(&self, path: &str, body: &[u8], timeout_ms: u64) -> Result<Vec<u8>, String> {
+        let addr_str = format!("{}:{}", self.host, self.port);
+        let socket_addr: SocketAddr = addr_str
+            .parse()
+            .map_err(|e| format!("Invalid address: {}", e))?;
+
+        let mut stream = TcpStream::connect_timeout(&socket_addr, Duration::from_millis(timeout_ms))
+            .map_err(|e| format!("Connect error: {}", e))?;
+
+        stream
+            .set_read_timeout(Some(Duration::from_millis(timeout_ms)))
+            .map_err(|e| format!("Timeout error: {}", e))?;
+        stream
+            .set_write_timeout(Some(Duration::from_millis(timeout_ms)))
+            .map_err(|e| format!("Timeout error: {}", e))?;
+
+        let request = format!(
+            "POST {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: SonixLink-Rust/1.0\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            path, self.host, body.len()
+        );
+        stream.write_all(request.as_bytes()).map_err(|e| format!("Write error: {}", e))?;
+        stream.write_all(body).map_err(|e| format!("Write error: {}", e))?;
+
+        let mut response = Vec::with_capacity(4096);
+        let mut buf = [0u8; 4096];
+        loop {
+            match stream.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => response.extend_from_slice(&buf[..n]),
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut => break,
+                Err(e) => return Err(format!("Read error: {}", e)),
+            }
+        }
+        Ok(response)
+    }
+
+    pub fn selection(&self, action: &str, paths: &[&str], playlist: &str) {
+        if paths.is_empty() { return; }
+        let mut path_str = format!("/api/command?do={}", urlencoding(action));
+        if !playlist.is_empty() {
+            path_str.push_str("&value=");
+            path_str.push_str(&urlencoding(playlist));
+        }
+        let body = paths.join("\n").into_bytes();
+        let _ = self.raw_http_post(&path_str, &body, 4000);
+    }
+
+    pub fn queue_next(&self, paths: &[&str]) {
+        self.selection("queue_next", paths, "");
+    }
+
+    pub fn set_gain(&self, high: bool) {
+        self.command("gain", &[("value", if high { "high" } else { "low" })]);
+    }
+
+    pub fn toggle_gain(&self) {
+        self.command("gain", &[("value", "toggle")]);
+    }
+
+    pub fn save_playlist(&self, name: &str, paths: &[&str]) {
+        self.selection("playlist_add", paths, name);
     }
 
     pub fn get_state(&self) -> Option<PlayerState> {

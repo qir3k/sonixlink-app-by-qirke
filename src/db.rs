@@ -266,6 +266,250 @@ impl LibraryDb {
         self.query_simple("SELECT year AS name, COUNT(*) AS count FROM MEDIA_TABLE WHERE year <> '' GROUP BY year ORDER BY year DESC")
     }
 
+    pub fn get_playlists(&self) -> Vec<SimpleItem> {
+        let lib = match &self.sqlite {
+            Some(l) => l,
+            None => return Vec::new(),
+        };
+        let c_path = match CString::new(self.db_path.to_string_lossy().as_bytes()) {
+            Ok(p) => p,
+            Err(_) => return Vec::new(),
+        };
+        let mut db: *mut c_void = std::ptr::null_mut();
+        if unsafe { (lib.open)(c_path.as_ptr(), &mut db) } != SQLITE_OK {
+            return Vec::new();
+        }
+
+        let mut table_names = Vec::new();
+        let sql = CString::new("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'M3U_%' ORDER BY name").unwrap();
+        let mut stmt: *mut c_void = std::ptr::null_mut();
+        if unsafe { (lib.prepare_v2)(db, sql.as_ptr(), -1, &mut stmt, std::ptr::null_mut()) } == SQLITE_OK {
+            while unsafe { (lib.step)(stmt) } == SQLITE_ROW {
+                let name = self.extract_text(lib, stmt, 0);
+                if !name.is_empty() {
+                    table_names.push(name);
+                }
+            }
+            unsafe { (lib.finalize)(stmt) };
+        }
+
+        let mut results = Vec::new();
+        for table in table_names {
+            let clean_name = table.strip_prefix("M3U_").unwrap_or(&table).to_string();
+            let count_sql = format!("SELECT COUNT(*) FROM \"{}\" WHERE path <> ''", table.replace('"', "\"\""));
+            let mut count = 0;
+            if let Ok(c_sql) = CString::new(count_sql) {
+                let mut count_stmt: *mut c_void = std::ptr::null_mut();
+                if unsafe { (lib.prepare_v2)(db, c_sql.as_ptr(), -1, &mut count_stmt, std::ptr::null_mut()) } == SQLITE_OK {
+                    if unsafe { (lib.step)(count_stmt) } == SQLITE_ROW {
+                        count = unsafe { (lib.column_int)(count_stmt, 0) as u32 };
+                    }
+                    unsafe { (lib.finalize)(count_stmt) };
+                }
+            }
+            results.push(SimpleItem {
+                name: clean_name,
+                track_count: count,
+            });
+        }
+
+        unsafe { (lib.close)(db) };
+        results
+    }
+
+    pub fn get_tracks_by_playlist(&self, playlist_name: &str) -> Vec<TrackItem> {
+        let table = format!("M3U_{}", playlist_name.replace('"', "\"\""));
+        let query = format!(
+            "SELECT p.title, p.artist, IFNULL(m.album, '') AS album, p.path, \
+             p.seconds AS duration, p.idx AS track_num \
+             FROM \"{}\" p \
+             LEFT JOIN MEDIA_TABLE m ON m.path = p.path \
+             WHERE p.path <> '' ORDER BY p.idx LIMIT 2000",
+            table
+        );
+        self.query_tracks(&query)
+    }
+
+    pub fn generate_smartmix(&self, seed_path: &str) -> Vec<TrackItem> {
+        let lib = match &self.sqlite {
+            Some(l) => l,
+            None => return Vec::new(),
+        };
+        let c_path = match CString::new(self.db_path.to_string_lossy().as_bytes()) {
+            Ok(p) => p,
+            Err(_) => return Vec::new(),
+        };
+        let mut db: *mut c_void = std::ptr::null_mut();
+        if unsafe { (lib.open)(c_path.as_ptr(), &mut db) } != SQLITE_OK {
+            return Vec::new();
+        }
+
+        // 1. Fetch seed track metadata
+        let mut seed_title = String::new();
+        let mut seed_artist = String::new();
+        let mut seed_album = String::new();
+        let mut seed_genre = String::new();
+        let mut seed_year: i32 = 0;
+        let mut seed_duration: u32 = 0;
+        let mut actual_seed_path = seed_path.to_string();
+
+        let seed_sql = if !seed_path.is_empty() {
+            format!(
+                "SELECT name, artist, album, genre, year, \
+                 (CASE WHEN end_time > begin_time THEN (end_time - begin_time)/1000 ELSE 0 END) AS duration \
+                 FROM MEDIA_TABLE WHERE path = '{}' LIMIT 1",
+                seed_path.replace('\'', "''")
+            )
+        } else {
+            "SELECT name, artist, album, genre, year, \
+             (CASE WHEN end_time > begin_time THEN (end_time - begin_time)/1000 ELSE 0 END) AS duration, \
+             path \
+             FROM MEDIA_TABLE WHERE path <> '' LIMIT 1".to_string()
+        };
+
+        if let Ok(c_sql) = CString::new(seed_sql) {
+            let mut stmt: *mut c_void = std::ptr::null_mut();
+            if unsafe { (lib.prepare_v2)(db, c_sql.as_ptr(), -1, &mut stmt, std::ptr::null_mut()) } == SQLITE_OK {
+                if unsafe { (lib.step)(stmt) } == SQLITE_ROW {
+                    seed_title = self.extract_text(lib, stmt, 0);
+                    seed_artist = self.extract_text(lib, stmt, 1);
+                    seed_album = self.extract_text(lib, stmt, 2);
+                    seed_genre = self.extract_text(lib, stmt, 3);
+                    seed_year = unsafe { (lib.column_int)(stmt, 4) };
+                    seed_duration = unsafe { (lib.column_int)(stmt, 5) as u32 };
+                    if seed_path.is_empty() {
+                        actual_seed_path = self.extract_text(lib, stmt, 6);
+                    }
+                }
+                unsafe { (lib.finalize)(stmt) };
+            }
+        }
+
+        if seed_title.is_empty() {
+            unsafe { (lib.close)(db) };
+            return Vec::new();
+        }
+
+        // 2. Fetch candidate tracks
+        struct RawCandidate {
+            track: TrackItem,
+            score: f32,
+        }
+        let mut candidates = Vec::with_capacity(500);
+
+        let cand_sql = format!(
+            "SELECT name, artist, album, genre, year, path, \
+             (CASE WHEN end_time > begin_time THEN (end_time - begin_time)/1000 ELSE 0 END) AS duration \
+             FROM MEDIA_TABLE WHERE path <> '{}' AND path <> '' LIMIT 2500",
+            actual_seed_path.replace('\'', "''")
+        );
+
+        if let Ok(c_sql) = CString::new(cand_sql) {
+            let mut stmt: *mut c_void = std::ptr::null_mut();
+            if unsafe { (lib.prepare_v2)(db, c_sql.as_ptr(), -1, &mut stmt, std::ptr::null_mut()) } == SQLITE_OK {
+                let mut pseudo_rand: u32 = 0x12345678;
+                while unsafe { (lib.step)(stmt) } == SQLITE_ROW {
+                    let title = self.extract_text(lib, stmt, 0);
+                    let artist = self.extract_text(lib, stmt, 1);
+                    let album = self.extract_text(lib, stmt, 2);
+                    let genre = self.extract_text(lib, stmt, 3);
+                    let year = unsafe { (lib.column_int)(stmt, 4) };
+                    let path = self.extract_text(lib, stmt, 5);
+                    let duration = unsafe { (lib.column_int)(stmt, 6) as u32 };
+
+                    let mut score = 0.0f32;
+                    if !seed_artist.is_empty() && artist.eq_ignore_ascii_case(&seed_artist) {
+                        score += 50.0;
+                    }
+                    if !seed_genre.is_empty() && !genre.is_empty() && genre.eq_ignore_ascii_case(&seed_genre) {
+                        score += 40.0;
+                    }
+                    if seed_year > 0 && year > 0 {
+                        let diff = (year - seed_year).abs();
+                        if diff <= 2 { score += 30.0; }
+                        else if diff <= 5 { score += 20.0; }
+                        else if diff <= 10 { score += 10.0; }
+                    }
+
+                    if score > 0.0 {
+                        pseudo_rand = pseudo_rand.wrapping_mul(1103515245).wrapping_add(12345);
+                        let jitter = ((pseudo_rand >> 16) % 15) as f32;
+                        score += jitter;
+
+                        candidates.push(RawCandidate {
+                            track: TrackItem {
+                                track_num: 0,
+                                title,
+                                artist,
+                                album,
+                                duration,
+                                path,
+                            },
+                            score,
+                        });
+                    }
+                }
+                unsafe { (lib.finalize)(stmt) };
+            }
+        }
+
+        unsafe { (lib.close)(db) };
+
+        candidates.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+
+        // 3. Assemble 25-track mix with artist spacing
+        let mut mix = Vec::with_capacity(25);
+        mix.push(TrackItem {
+            track_num: 1,
+            title: seed_title,
+            artist: seed_artist.clone(),
+            album: seed_album,
+            duration: seed_duration,
+            path: actual_seed_path,
+        });
+
+        use std::collections::HashMap;
+        let mut artist_counts = HashMap::new();
+        if !seed_artist.is_empty() {
+            artist_counts.insert(seed_artist.to_lowercase(), 1);
+        }
+
+        let mut pool: Vec<RawCandidate> = candidates.into_iter().take(200).collect();
+        while !pool.is_empty() && mix.len() < 25 {
+            let last_artist = mix.last().map(|t| t.artist.to_lowercase()).unwrap_or_default();
+            let mut chosen_idx = None;
+
+            for (idx, c) in pool.iter().enumerate() {
+                let art_key = c.track.artist.to_lowercase();
+                if art_key == last_artist && pool.len() > 4 {
+                    continue;
+                }
+                let count = *artist_counts.get(&art_key).unwrap_or(&0);
+                let max_allowed = if art_key == seed_artist.to_lowercase() { 3 } else { 2 };
+                if count >= max_allowed && pool.len() > 8 {
+                    continue;
+                }
+                chosen_idx = Some(idx);
+                break;
+            }
+
+            let chosen = if let Some(idx) = chosen_idx {
+                pool.remove(idx)
+            } else {
+                pool.remove(0)
+            };
+
+            let art_key = chosen.track.artist.to_lowercase();
+            *artist_counts.entry(art_key).or_insert(0) += 1;
+
+            let mut t = chosen.track;
+            t.track_num = (mix.len() + 1) as u32;
+            mix.push(t);
+        }
+
+        mix
+    }
+
     fn query_simple(&self, sql_str: &str) -> Vec<SimpleItem> {
         let lib = match &self.sqlite {
             Some(l) => l,
