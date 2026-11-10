@@ -503,8 +503,7 @@ class BrowseFragment : Fragment(), MainActivity.LibraryListener {
                         it.playAll(list, value, "random")
                     }
                     3 -> {
-                        val currentRows = adapter.currentList
-                        val seedPath = currentRows.firstOrNull { it.isTrack }?.path.orEmpty()
+                        val seedPath = (0 until adapter.rowCount).mapNotNull { adapter.rowAt(it) }.firstOrNull { it.isTrack }?.path.orEmpty()
                         viewLifecycleOwner.lifecycleScope.launch {
                             val mix = withContext(Dispatchers.IO) {
                                 Session.library?.generateSmartMix(seedPath) ?: emptyList()

@@ -113,6 +113,15 @@
             </LinearLayout>
 
             <ImageButton
+                android:id="@+id/smartmixButton"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_smartmix"
+                android:contentDescription="@string/smartmix"
+                android:tint="@color/text_secondary" />
+
+            <ImageButton
                 android:id="@+id/favouriteButton"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:layout_width="48dp"
