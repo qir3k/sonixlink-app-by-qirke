@@ -1,3 +1,4 @@
+use crate::bt::{self, Link};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -141,53 +142,120 @@ pub struct StreamList {
     pub error: String,
 }
 
-#[derive(Debug, Clone)]
-pub struct SonixClient {
+/// Where the player is: Wi-Fi address, or a paired Bluetooth address.
+#[derive(Debug, Clone, Default)]
+pub struct PlayerTarget {
     pub host: String,
     pub port: u16,
+    pub use_bluetooth: bool,
+    pub bluetooth_address: String,
+}
+
+/// Clones share one target, so the background poller follows a connection change.
+#[derive(Debug, Clone)]
+pub struct SonixClient {
+    target: std::sync::Arc<std::sync::Mutex<PlayerTarget>>,
 }
 
 impl SonixClient {
     pub fn new(host: String, port: u16) -> Self {
-        Self { host, port }
+        Self {
+            target: std::sync::Arc::new(std::sync::Mutex::new(PlayerTarget {
+                host,
+                port,
+                use_bluetooth: false,
+                bluetooth_address: String::new(),
+            })),
+        }
     }
 
-    fn raw_http_get(&self, path: &str, timeout_ms: u64) -> Result<Vec<u8>, String> {
-        let addr_str = format!("{}:{}", self.host, self.port);
+    pub fn target(&self) -> PlayerTarget {
+        self.target.lock().map(|t| t.clone()).unwrap_or_default()
+    }
+
+    pub fn set_wifi_target(&self, host: &str, port: u16) {
+        if let Ok(mut t) = self.target.lock() {
+            t.host = host.to_string();
+            t.port = port;
+            t.use_bluetooth = false;
+        }
+    }
+
+    pub fn set_bluetooth_target(&self, address: &str) {
+        if let Ok(mut t) = self.target.lock() {
+            t.bluetooth_address = address.trim().to_string();
+            t.use_bluetooth = true;
+        }
+    }
+
+    /// Open a link to the player: RFCOMM when Bluetooth is selected, TCP otherwise.
+    fn open(&self, timeout_ms: u64) -> Result<Link, String> {
+        let target = self.target();
+        if target.use_bluetooth {
+            let address = bt::parse_address(&target.bluetooth_address)
+                .ok_or_else(|| "Invalid Bluetooth address".to_string())?;
+            let sock = bt::Rfcomm::connect(address, bt::RFCOMM_CHANNEL, timeout_ms as u32)
+                .map_err(|e| format!("Bluetooth connect error: {}", e))?;
+            return Ok(Link::Bluetooth(sock));
+        }
+
+        let addr_str = format!("{}:{}", target.host, target.port);
         let socket_addr: SocketAddr = addr_str
             .parse()
             .map_err(|e| format!("Invalid address: {}", e))?;
-
-        let mut stream = TcpStream::connect_timeout(&socket_addr, Duration::from_millis(timeout_ms))
+        let stream = TcpStream::connect_timeout(&socket_addr, Duration::from_millis(timeout_ms))
             .map_err(|e| format!("Connect error: {}", e))?;
-
         stream
             .set_read_timeout(Some(Duration::from_millis(timeout_ms)))
             .map_err(|e| format!("Timeout error: {}", e))?;
         stream
             .set_write_timeout(Some(Duration::from_millis(timeout_ms)))
             .map_err(|e| format!("Timeout error: {}", e))?;
+        Ok(Link::Tcp(stream))
+    }
+
+    /// Read a whole answer. Over RFCOMM the player keeps the link open, so stop at
+    /// Content-Length instead of waiting for the socket to close.
+    fn read_response(link: &mut Link) -> Vec<u8> {
+        let mut response: Vec<u8> = Vec::with_capacity(8192);
+        let mut buf = [0u8; 8192];
+        let mut complete_at: Option<usize> = None;
+
+        loop {
+            if complete_at.is_none() {
+                if let Some(head_end) = response.windows(4).position(|w| w == b"\r\n\r\n") {
+                    complete_at = match content_length(&response[..head_end]) {
+                        Some(len) => Some(head_end + 4 + len),
+                        None => Some(usize::MAX), // no length: read until close or timeout
+                    };
+                }
+            }
+            if let Some(total) = complete_at {
+                if total != usize::MAX && response.len() >= total {
+                    break;
+                }
+            }
+            match link.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => response.extend_from_slice(&buf[..n]),
+                Err(_) => break,
+            }
+        }
+        response
+    }
+
+    fn raw_http_get(&self, path: &str, timeout_ms: u64) -> Result<Vec<u8>, String> {
+        let mut link = self.open(timeout_ms)?;
 
         let request = format!(
             "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: SonixLink-Rust/1.0\r\nConnection: close\r\n\r\n",
-            path, self.host
+            path,
+            self.target().host
         );
-        stream
-            .write_all(request.as_bytes())
+        link.write_all(request.as_bytes())
             .map_err(|e| format!("Write error: {}", e))?;
 
-        let mut response = Vec::with_capacity(8192);
-        let mut buf = [0u8; 4096];
-        loop {
-            match stream.read(&mut buf) {
-                Ok(0) => break,
-                Ok(n) => response.extend_from_slice(&buf[..n]),
-                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut => {
-                    break;
-                }
-                Err(e) => return Err(format!("Read error: {}", e)),
-            }
-        }
+        let response = Self::read_response(&mut link);
 
         // Parse headers vs body
         let header_end = response
@@ -195,44 +263,22 @@ impl SonixClient {
             .position(|w| w == b"\r\n\r\n")
             .ok_or_else(|| "Malformed HTTP response".to_string())?;
 
-        let body = response[header_end + 4..].to_vec();
-        Ok(body)
+        Ok(response[header_end + 4..].to_vec())
     }
 
     fn raw_http_post(&self, path: &str, body: &[u8], timeout_ms: u64) -> Result<Vec<u8>, String> {
-        let addr_str = format!("{}:{}", self.host, self.port);
-        let socket_addr: SocketAddr = addr_str
-            .parse()
-            .map_err(|e| format!("Invalid address: {}", e))?;
-
-        let mut stream = TcpStream::connect_timeout(&socket_addr, Duration::from_millis(timeout_ms))
-            .map_err(|e| format!("Connect error: {}", e))?;
-
-        stream
-            .set_read_timeout(Some(Duration::from_millis(timeout_ms)))
-            .map_err(|e| format!("Timeout error: {}", e))?;
-        stream
-            .set_write_timeout(Some(Duration::from_millis(timeout_ms)))
-            .map_err(|e| format!("Timeout error: {}", e))?;
+        let mut link = self.open(timeout_ms)?;
 
         let request = format!(
             "POST {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: SonixLink-Rust/1.0\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-            path, self.host, body.len()
+            path,
+            self.target().host,
+            body.len()
         );
-        stream.write_all(request.as_bytes()).map_err(|e| format!("Write error: {}", e))?;
-        stream.write_all(body).map_err(|e| format!("Write error: {}", e))?;
+        link.write_all(request.as_bytes()).map_err(|e| format!("Write error: {}", e))?;
+        link.write_all(body).map_err(|e| format!("Write error: {}", e))?;
 
-        let mut response = Vec::with_capacity(4096);
-        let mut buf = [0u8; 4096];
-        loop {
-            match stream.read(&mut buf) {
-                Ok(0) => break,
-                Ok(n) => response.extend_from_slice(&buf[..n]),
-                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut => break,
-                Err(e) => return Err(format!("Read error: {}", e)),
-            }
-        }
-        Ok(response)
+        Ok(Self::read_response(&mut link))
     }
 
     pub fn selection(&self, action: &str, paths: &[&str], playlist: &str) {
@@ -279,7 +325,7 @@ impl SonixClient {
     }
 
     pub fn toggle_play(&self) {
-        self.command("play_pause", &[]);
+        self.command("toggle", &[]);
     }
     pub fn prev(&self) {
         self.command("prev", &[]);
@@ -364,41 +410,16 @@ impl SonixClient {
     }
 
     pub fn download_db(&self, dest_path: &std::path::Path) -> Result<usize, String> {
-        let addr_str = format!("{}:{}", self.host, self.port);
-        let socket_addr: SocketAddr = addr_str
-            .parse()
-            .map_err(|e| format!("Invalid address: {}", e))?;
-
-        let mut stream = TcpStream::connect_timeout(&socket_addr, Duration::from_millis(5000))
-            .map_err(|e| format!("Connect error: {}", e))?;
-
-        stream
-            .set_read_timeout(Some(Duration::from_millis(15000)))
-            .map_err(|e| format!("Timeout error: {}", e))?;
-        stream
-            .set_write_timeout(Some(Duration::from_millis(5000)))
-            .map_err(|e| format!("Timeout error: {}", e))?;
+        let mut link = self.open(15000)?;
 
         let request = format!(
             "GET /api/db HTTP/1.1\r\nHost: {}\r\nUser-Agent: SonixLink-Rust/1.0\r\nConnection: close\r\n\r\n",
-            self.host
+            self.target().host
         );
-        stream
-            .write_all(request.as_bytes())
+        link.write_all(request.as_bytes())
             .map_err(|e| format!("Write error: {}", e))?;
 
-        let mut response = Vec::with_capacity(4 * 1024 * 1024);
-        let mut buf = [0u8; 16384];
-        loop {
-            match stream.read(&mut buf) {
-                Ok(0) => break,
-                Ok(n) => response.extend_from_slice(&buf[..n]),
-                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut => {
-                    break;
-                }
-                Err(e) => return Err(format!("Read error: {}", e)),
-            }
-        }
+        let response = Self::read_response(&mut link);
 
         let header_end = response
             .windows(4)
@@ -416,6 +437,18 @@ impl SonixClient {
         std::fs::write(dest_path, body).map_err(|e| format!("Failed to write db file: {}", e))?;
         Ok(body.len())
     }
+}
+
+fn content_length(headers: &[u8]) -> Option<usize> {
+    let text = String::from_utf8_lossy(headers);
+    text.lines().find_map(|line| {
+        let (name, value) = line.split_once(':')?;
+        if name.trim().eq_ignore_ascii_case("content-length") {
+            value.trim().parse().ok()
+        } else {
+            None
+        }
+    })
 }
 
 fn urlencoding(input: &str) -> String {

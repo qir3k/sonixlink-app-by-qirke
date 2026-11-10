@@ -11,10 +11,7 @@ local.properties
 *.keystore
 
 # OS
-.DS_Store
-app/.DS_Store
-app/src/.DS_Store
-gradle/.DS_Store
+**/.DS_Store
 Thumbs.db
 
 # Local tooling & agents
@@ -25,13 +22,10 @@ freebuff/
 kilo/
 repomix-output.xml
 
-# Rust & Desktop Client
+# Rust & Windows Desktop Client
 target/
 dist/
 .artwork_cache/
 library.db
 settings.json
 SonixLink.exe
-SonixLink.bat
-__pycache__/
-*.pyc

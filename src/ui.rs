@@ -15,6 +15,32 @@ pub struct StreamPage {
     pub title: String,
 }
 
+/// The player's five modes, in the order its own button cycles them.
+fn next_play_mode(mode: &str) -> &'static str {
+    match mode {
+        "repeat_all" => "repeat_one",
+        "repeat_one" => "shuffle",
+        "shuffle" => "shuffle_repeat",
+        "shuffle_repeat" => "normal",
+        _ => "repeat_all",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn play_modes_cycle_through_all_five() {
+        let mut mode = "normal";
+        let mut seen = Vec::new();
+        for _ in 0..5 {
+            seen.push(mode);
+            mode = super::next_play_mode(mode);
+        }
+        assert_eq!(mode, "normal");
+        assert_eq!(seen, ["normal", "repeat_all", "repeat_one", "shuffle", "shuffle_repeat"]);
+    }
+}
+
 
 pub struct SonixApp {
     pub client: SonixClient,
@@ -40,6 +66,8 @@ pub struct SonixApp {
     pub show_dsp: bool,
     pub show_devices: bool,
     pub manual_host_input: String,
+    pub manual_bluetooth_input: String,
+    pub bluetooth_error: String,
 
     pub is_syncing_db: bool,
     pub sync_db_rx: Receiver<bool>,
@@ -74,6 +102,10 @@ impl SonixApp {
 
         let settings = AppSettings::load();
         let client = SonixClient::new(settings.last_host.clone(), settings.last_port);
+        if settings.use_bluetooth && !settings.bluetooth_address.is_empty() {
+            client.set_bluetooth_target(&settings.bluetooth_address);
+        }
+        let initial_bluetooth = settings.bluetooth_address.clone();
         let db = LibraryDb::new();
 
         let (state_tx, state_rx) = channel();
@@ -115,6 +147,8 @@ impl SonixApp {
             show_dsp: false,
             show_devices: false,
             manual_host_input: "192.168.0.17".to_string(),
+            manual_bluetooth_input: initial_bluetooth,
+            bluetooth_error: String::new(),
 
             is_syncing_db: false,
             sync_db_rx,
@@ -217,6 +251,25 @@ impl SonixApp {
                 self.stream_services = client.get_stream_services();
             }
             _ => self.tracks = self.db.get_all_tracks(),
+        }
+    }
+
+    /// The player's own play-all list for what the centre panel is showing.
+    fn play_all_list(&self) -> (&'static str, &str) {
+        match self.drilldown_category {
+            Some((ref cat, ref name)) => (
+                match cat.as_str() {
+                    "albums" => "album",
+                    "artists" => "artist",
+                    "genres" => "genre",
+                    "years" => "year",
+                    "playlists" => "playlist",
+                    _ => "all",
+                },
+                name,
+            ),
+            None if self.current_nav == "favourites" => ("favourites", ""),
+            None => ("all", ""),
         }
     }
 
@@ -426,15 +479,21 @@ impl SonixApp {
 
                         if let Some(ref s) = self.current_state {
                             if s.battery >= 0 {
-                                let charge_txt = if s.charging { format!("{}% [CHG]", s.battery) } else { format!("{}%", s.battery) };
                                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                    ui.label(egui::RichText::new(charge_txt).color(TEXT_SECONDARY).size(10.0));
+                                    ui.label(egui::RichText::new(format!("{}%", s.battery)).color(TEXT_SECONDARY).size(10.0));
+                                    battery_icon(ui, s.battery, s.charging, accent, 11.0);
                                 });
                             }
                         }
                     });
 
-                    ui.label(egui::RichText::new(format!("{}:{}", self.client.host, self.client.port)).color(TEXT_MUTED).size(9.5));
+                    let target = self.client.target();
+                    let link_label = if target.use_bluetooth {
+                        format!("Bluetooth {}", target.bluetooth_address)
+                    } else {
+                        format!("Wi-Fi {}:{}", target.host, target.port)
+                    };
+                    ui.label(egui::RichText::new(link_label).color(TEXT_MUTED).size(9.5));
 
                     ui.add_space(6.0);
                     let btn_w = ((ui.available_width() - 6.0) / 2.0).max(60.0);
@@ -573,15 +632,9 @@ impl SonixApp {
                             }
                         }
                     }
-                    if header_pill_button(ui, "shuffle", "Shuffle", false, accent).clicked() {
-                        self.client.command("mode", &[("value", "shuffle")]);
-                        if let Some(first) = self.tracks.first() {
-                            if cat == "playlists" {
-                                self.client.command("play_path", &[("path", &first.path), ("list", "playlist"), ("value", name)]);
-                            } else {
-                                self.client.command("play_path", &[("path", &first.path)]);
-                            }
-                        }
+                    if header_pill_button(ui, "shuffle", "Shuffle", false, accent).clicked() && !self.tracks.is_empty() {
+                        let (list, value) = self.play_all_list();
+                        self.client.command("play_all", &[("list", list), ("value", value), ("how", "shuffle")]);
                     }
                 });
             });
@@ -654,11 +707,9 @@ impl SonixApp {
                         self.client.command("play_path", &[("path", &first.path)]);
                     }
                 }
-                if header_pill_button(ui, "shuffle", "Shuffle", false, accent).clicked() {
-                    self.client.command("mode", &[("value", "shuffle")]);
-                    if let Some(first) = self.tracks.first() {
-                        self.client.command("play_path", &[("path", &first.path)]);
-                    }
+                if header_pill_button(ui, "shuffle", "Shuffle", false, accent).clicked() && !self.tracks.is_empty() {
+                    let (list, value) = self.play_all_list();
+                    self.client.command("play_all", &[("list", list), ("value", value), ("how", "shuffle")]);
                 }
                 if self.current_nav == "smartmix" {
                     if header_pill_button(ui, "plus", "Save Playlist", false, accent).clicked() {
@@ -677,13 +728,17 @@ impl SonixApp {
 
         // 2. Minimalist Search Field with Crisp Vector Magnifying Glass
         ui.add_space(6.0);
-        Frame::new()
-            .fill(BG_CARD)
-            .stroke(Stroke::new(1.0, BORDER))
-            .corner_radius(6.0)
-            .inner_margin(Vec2::new(10.0, 5.0))
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
+        // Fixed to the full centre width so it lines up with the table below
+        let search_w = ui.available_width();
+        ui.allocate_ui_with_layout(Vec2::new(search_w, 0.0), Layout::top_down(Align::Min), |ui| {
+            Frame::new()
+                .fill(BG_CARD)
+                .stroke(Stroke::new(1.0, BORDER))
+                .corner_radius(6.0)
+                .inner_margin(Vec2::new(10.0, 5.0))
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.horizontal(|ui| {
                     // Crisp vector search magnifying glass (white, matching Play All icon style)
                     let (icon_rect, _) = ui.allocate_exact_size(Vec2::new(14.0, 14.0), egui::Sense::hover());
                     let p = ui.painter();
@@ -699,10 +754,19 @@ impl SonixApp {
 
                     ui.add_space(6.0);
                     let edit = egui::TextEdit::singleline(&mut self.search_query)
-                        .hint_text("Search tracks, artists, albums...")
                         .frame(Frame::NONE)
                         .desired_width(ui.available_width() - 30.0);
                     let edit_resp = ui.add(edit);
+                    if self.search_query.is_empty() {
+                        // Centred hint, drawn here because TextEdit always left-aligns its own
+                        ui.painter().text(
+                            ui.max_rect().center(),
+                            egui::Align2::CENTER_CENTER,
+                            "Search tracks, artists, albums...",
+                            egui::FontId::proportional(11.5),
+                            TEXT_MUTED,
+                        );
+                    }
                     if edit_resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                         if let Some(ref service_id) = self.active_stream_service.clone() {
                             let q = self.search_query.trim().to_string();
@@ -725,6 +789,7 @@ impl SonixApp {
                     }
                 });
             });
+        });
 
         ui.add_space(8.0);
 
@@ -744,22 +809,31 @@ impl SonixApp {
 
         let avail_w = ui.available_width().max(360.0);
         let w_num = 36.0;
-        let w_time = 52.0;
         let sep_w = 8.0;
+
+        // Time column takes just enough width for the longest duration in the list
+        let time_sample = if self.tracks.iter().any(|t| t.duration >= 3600) { "0:00:00" } else { "00:00" };
+        let w_time = ui
+            .painter()
+            .layout_no_wrap(time_sample.to_string(), egui::FontId::proportional(11.0), TEXT_MUTED)
+            .size()
+            .x
+            + sep_w
+            + 14.0;
 
         // Calculate flexible column widths
         let (w_title, mut w_artist, mut w_album) = if is_album_drilldown {
-            let flex = (avail_w - w_num - w_time - 2.0 * sep_w - 24.0).max(180.0);
+            let flex = (avail_w - w_num - w_time - 2.0 * sep_w - 8.0).max(180.0);
             let wa = self.settings.col_widths[1].clamp(60.0, (flex - 80.0).max(60.0));
             let wt = (flex - wa).max(80.0);
             (wt, wa, 0.0)
         } else if is_artist_drilldown {
-            let flex = (avail_w - w_num - w_time - 2.0 * sep_w - 24.0).max(180.0);
+            let flex = (avail_w - w_num - w_time - 2.0 * sep_w - 8.0).max(180.0);
             let wb = self.settings.col_widths[2].clamp(60.0, (flex - 80.0).max(60.0));
             let wt = (flex - wb).max(80.0);
             (wt, 0.0, wb)
         } else {
-            let flex = (avail_w - w_num - w_time - 3.0 * sep_w - 24.0).max(220.0);
+            let flex = (avail_w - w_num - w_time - 3.0 * sep_w - 8.0).max(220.0);
             let wa = self.settings.col_widths[1].clamp(60.0, (flex * 0.45).max(70.0));
             let wb = self.settings.col_widths[2].clamp(60.0, (flex * 0.45).max(70.0));
             let wt = (flex - wa - wb).max(80.0);
@@ -855,6 +929,9 @@ impl SonixApp {
             (r2, Some(r3))
         };
 
+        // TIME starts in the gutter right after the last data column
+        let x_time = if is_album_drilldown || is_artist_drilldown { x_sep2 } else { x_sep3 };
+
         // Paint header elements
         let hp = ui.painter();
         hp.rect_filled(header_rect, 4.0, BG_CARD);
@@ -929,10 +1006,10 @@ impl SonixApp {
             }
         }
 
-        // TIME column header (Right-aligned)
+        // TIME column header (left-aligned like every other column)
         hp.text(
-            egui::pos2(header_rect.right() - 14.0, cy),
-            egui::Align2::RIGHT_CENTER,
+            egui::pos2(header_rect.left() + x_time + sep_w + 4.0, cy),
+            egui::Align2::LEFT_CENTER,
             "TIME",
             hdr_font,
             TEXT_MUTED,
@@ -1080,12 +1157,12 @@ impl SonixApp {
                     );
                 }
 
-                // 7. Draw Column 5: Time (Right-aligned, matching header)
+                // 7. Draw Column 5: Time (left-aligned, matching header)
                 if track.duration > 0 {
                     let dur_str = format_duration(track.duration);
                     painter.text(
-                        egui::pos2(rect.right() - 14.0, row_cy),
-                        egui::Align2::RIGHT_CENTER,
+                        egui::pos2(rect.left() + x_time + sep_w + 4.0, row_cy),
+                        egui::Align2::LEFT_CENTER,
                         dur_str,
                         egui::FontId::proportional(11.0),
                         time_color,
@@ -1559,7 +1636,12 @@ impl SonixApp {
                     // Mode Toggle (Shuffle / Repeat / Normal)
                     let mode_str = self.current_state.as_ref().map(|s| s.mode.clone()).unwrap_or_else(|| "normal".to_string());
                     if playback_mode_button(ui, &mode_str, accent, 28.0).clicked() {
-                        self.client.command("mode", &[("value", "next")]);
+                        // The player has no "next mode" command, so cycle its five values here.
+                        let next_mode = next_play_mode(&mode_str);
+                        if let Some(ref mut s) = self.current_state {
+                            s.mode = next_mode.to_string();
+                        }
+                        self.client.command("mode", &[("value", next_mode)]);
                     }
 
                     // Previous Track
@@ -1679,7 +1761,21 @@ impl SonixApp {
                         self.client.set_volume(self.volume_val as u8);
                     }
 
-                    ui.label(egui::RichText::new(format!("{}%", cur_vol)).size(9.5).color(TEXT_MUTED));
+                    // Wheel over the slider moves the volume by the step chosen in Settings
+                    let wheel: f32 = ui.input(|i| {
+                        i.raw.events.iter().map(|e| match e {
+                            egui::Event::MouseWheel { delta, .. } => delta.y,
+                            _ => 0.0,
+                        }).sum()
+                    });
+                    if vol_resp.hovered() && wheel != 0.0 {
+                        let step = self.settings.volume_step.max(1) as f32;
+                        self.volume_val = (self.volume_val + if wheel > 0.0 { step } else { -step }).clamp(0.0, 100.0);
+                        self.client.set_volume(self.volume_val as u8);
+                    }
+
+                    ui.add_space(8.0);
+                    ui.label(egui::RichText::new(format!("{}%", self.volume_val as u8)).size(9.5).color(TEXT_MUTED));
                 });
             });
         });
@@ -1916,25 +2012,65 @@ impl SonixApp {
     }
 
     fn render_devices_modal(&mut self, ctx: &egui::Context, accent: Color32) {
-        egui::Window::new("Devices on Network")
+        egui::Window::new("Connect to Player")
             .collapsible(false)
             .resizable(false)
-            .default_width(380.0)
+            .default_width(400.0)
             .show(ctx, |ui| {
-                ui.label(egui::RichText::new("Target Player Address:").size(11.0).color(TEXT_SECONDARY));
-                ui.add_space(6.0);
+                ui.label(egui::RichText::new("Over Wi-Fi").size(11.5).strong().color(TEXT_PRIMARY));
+                ui.add_space(4.0);
                 ui.horizontal(|ui| {
                     ui.label("IP:");
-                    ui.add(egui::TextEdit::singleline(&mut self.manual_host_input).desired_width(180.0));
+                    ui.add(egui::TextEdit::singleline(&mut self.manual_host_input).desired_width(160.0));
                     if ui.add(egui::Button::new("Connect").fill(accent).corner_radius(4.0)).clicked() {
-                        self.client.host = self.manual_host_input.clone();
+                        let port = self.client.target().port;
+                        self.client.set_wifi_target(&self.manual_host_input, port);
                         self.settings.last_host = self.manual_host_input.clone();
+                        self.settings.use_bluetooth = false;
                         self.settings.save();
                         self.current_state = None;
                         self.trigger_sync_db();
                         self.show_devices = false;
                     }
                 });
+
+                ui.add_space(12.0);
+                ui.separator();
+                ui.add_space(8.0);
+
+                ui.label(egui::RichText::new("Over Bluetooth").size(11.5).strong().color(TEXT_PRIMARY));
+                ui.label(
+                    egui::RichText::new("Pair the player in Windows Settings > Bluetooth & devices first.")
+                        .size(9.5)
+                        .color(TEXT_MUTED),
+                );
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    ui.label("Address:");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.manual_bluetooth_input)
+                            .hint_text("AA:BB:CC:DD:EE:FF")
+                            .desired_width(150.0),
+                    );
+                    if ui.add(egui::Button::new("Connect").fill(accent).corner_radius(4.0)).clicked() {
+                        if crate::bt::parse_address(&self.manual_bluetooth_input).is_some() {
+                            self.client.set_bluetooth_target(&self.manual_bluetooth_input);
+                            self.settings.bluetooth_address = self.manual_bluetooth_input.trim().to_string();
+                            self.settings.use_bluetooth = true;
+                            self.settings.save();
+                            self.bluetooth_error.clear();
+                            self.current_state = None;
+                            self.trigger_sync_db();
+                            self.show_devices = false;
+                        } else {
+                            self.bluetooth_error = "Enter the player's Bluetooth address, e.g. AA:BB:CC:DD:EE:FF".to_string();
+                        }
+                    }
+                });
+
+                if !self.bluetooth_error.is_empty() {
+                    ui.label(egui::RichText::new(&self.bluetooth_error).size(9.5).color(Color32::from_rgb(220, 90, 90)));
+                }
 
                 ui.add_space(10.0);
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {

@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(dead_code, unused_variables, non_snake_case)]
 
+mod bt;
 mod client;
 mod custom_widgets;
 mod db;
@@ -37,7 +38,7 @@ fn main() -> eframe::Result<()> {
 }
 
 fn load_embedded_icon() -> Option<IconData> {
-    const ICON_BYTES: &[u8] = include_bytes!("../desktop/icon.png");
+    const ICON_BYTES: &[u8] = include_bytes!("../icon.png");
     if let Ok(image) = image::load_from_memory(ICON_BYTES) {
         let rgba = image.to_rgba8();
         let (width, height) = rgba.dimensions();

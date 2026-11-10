@@ -13,11 +13,13 @@ improved artwork and volume-step handling. It lives at
 
 ## Windows 64-bit Desktop App
 
-In addition to the Android client, this repository includes a dedicated **Windows 64-bit Desktop Application** located in [\desktop/\](desktop/README.md):
-- **Widescreen 3-Panel Layout**: Tailored for 16:9 / 16:10 desktop monitors (Navigation & Discovery on the left, sortable Library & File Browser in the center, Now Playing with 260x260 artwork and hardware DSP on the right).
-- **DSP Controls**: Live pills for MSEB, Graphic EQ, PEQ, and PEQ Profile 1/2 switching with dynamic accent lighting.
-- **Standalone Launchers**: Run via \SonixLink.exe\ (native 64-bit GUI launcher without console windows) or \SonixLink.bat\.
-- See [\desktop/README.md\](desktop/README.md) for full details and usage.
+In addition to the Android client, this repository includes a dedicated **Windows 64-bit Desktop Application**, written in Rust with egui. The Rust source is the `src/` folder and `Cargo.toml` at the root of the repository.
+- **Widescreen 3-Panel Layout**: Navigation on the left, sortable library table in the middle, Now Playing with artwork, transport and hardware DSP on the right.
+- **DSP Controls**: Live pills for MSEB, Graphic EQ, PEQ, PEQ Profile 1/2 and amplifier gain.
+- **Wi-Fi or Bluetooth**: reach the player over the network, or over RFCOMM (pair it in Windows Settings > Bluetooth & devices, then enter its Bluetooth address under **Devices**).
+- **Build**: `cargo build --release` produces `target\release\sonixlink.exe`; copy it wherever you like, or grab the published `SonixLink-*-windows-x64.exe` from Releases.
+
+> The old Python/Tk desktop client has been removed; the Rust app replaces it.
 
 ---
 

@@ -8,6 +8,11 @@ pub struct AppSettings {
     pub last_host: String,
     #[serde(default = "default_port")]
     pub last_port: u16,
+    /// Paired player's Bluetooth address, and whether to reach it over RFCOMM.
+    #[serde(default)]
+    pub bluetooth_address: String,
+    #[serde(default)]
+    pub use_bluetooth: bool,
     #[serde(default = "default_accent_pref")]
     pub accent_preference: String,
     #[serde(default)]
@@ -52,6 +57,8 @@ impl Default for AppSettings {
         Self {
             last_host: default_host(),
             last_port: default_port(),
+            bluetooth_address: String::new(),
+            use_bluetooth: false,
             accent_preference: default_accent_pref(),
             device_accent: String::new(),
             fav_mark_preference: default_fav_pref(),
