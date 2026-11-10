@@ -13,6 +13,13 @@ pub struct StreamPage {
     pub kind: String,
     pub id: String,
     pub title: String,
+    pub query: String,
+}
+
+/// Answers from the worker thread that talks to the streaming services.
+pub enum StreamMsg {
+    Page(StreamList),
+    Played(Result<(), String>),
 }
 
 /// The player's five modes, in the order its own button cycles them.
@@ -56,7 +63,12 @@ pub struct SonixApp {
     pub stream_services: Vec<StreamService>,
     pub active_stream_service: Option<String>,
     pub stream_list: StreamList,
+    pub stream_page_kind: String,
+    pub stream_loading: bool,
+    pub stream_status: String,
     pub stream_stack: Vec<StreamPage>,
+    pub stream_rx: Receiver<StreamMsg>,
+    pub stream_tx: Sender<StreamMsg>,
 
     pub seek_val: f32,
     pub is_seeking: bool,
@@ -112,6 +124,7 @@ impl SonixApp {
         let (art_tx, art_rx) = channel();
         let (sync_db_tx, sync_db_rx) = channel();
         let (update_tx, update_rx) = channel();
+        let (stream_tx, stream_rx) = channel();
 
         // Background poller thread
         let client_clone = client.clone();
@@ -137,7 +150,12 @@ impl SonixApp {
             stream_services: Vec::new(),
             active_stream_service: None,
             stream_list: StreamList::default(),
+            stream_page_kind: String::new(),
+            stream_loading: false,
+            stream_status: String::new(),
             stream_stack: Vec::new(),
+            stream_rx,
+            stream_tx,
 
             seek_val: 0.0,
             is_seeking: false,
@@ -276,8 +294,59 @@ impl SonixApp {
     fn open_stream_service(&mut self, service_id: &str) {
         self.active_stream_service = Some(service_id.to_string());
         self.stream_stack.clear();
+        self.load_stream_page("menu".to_string(), String::new(), String::new());
+    }
+
+    /// Fetches a service page on a worker thread: the player can take many
+    /// seconds to build one, and the window must stay alive meanwhile.
+    fn load_stream_page(&mut self, kind: String, id: String, query: String) {
+        let Some(service) = self.active_stream_service.clone() else { return };
+        self.stream_page_kind = kind.clone();
+        self.stream_loading = true;
+        self.stream_status.clear();
         let client = self.client.clone();
-        self.stream_list = client.get_stream_list(service_id, "menu", "", "");
+        let tx = self.stream_tx.clone();
+        std::thread::spawn(move || {
+            let mut list = client.get_stream_list(&service, &kind, &id, &query);
+            // A player from before these menus answers "unknown_kind" here; it
+            // still has a first page per service, so show that instead.
+            if kind == "menu" && list.rows.is_empty() && !list.error.is_empty() {
+                list = client.get_stream_list(&service, "", "", "");
+            }
+            let _ = tx.send(StreamMsg::Page(list));
+        });
+    }
+
+    fn play_stream_index(&mut self, index: usize) {
+        let Some(service) = self.active_stream_service.clone() else { return };
+        self.stream_status = "Starting playback...".to_string();
+        let client = self.client.clone();
+        let tx = self.stream_tx.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(StreamMsg::Played(client.stream_play(&service, index)));
+        });
+    }
+
+    fn play_stream_container(&mut self, id: String) {
+        let Some(service) = self.active_stream_service.clone() else { return };
+        self.stream_status = "Starting playback...".to_string();
+        let client = self.client.clone();
+        let tx = self.stream_tx.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(StreamMsg::Played(client.stream_play_container(&service, &id)));
+        });
+    }
+
+    /// How a row's kind maps to the page the player serves for it.
+    fn stream_open_kind(kind: &str) -> &'static str {
+        match kind {
+            "album" => "album",
+            "playlist" => "playlist",
+            "artist" => "artist",
+            "feed" => "feed",
+            "term" => "stations",
+            _ => "open",
+        }
     }
 
     fn check_art_download(&mut self, path: &str) {
@@ -335,6 +404,25 @@ impl eframe::App for SonixApp {
                 self.db = LibraryDb::new();
                 self.load_view_data();
             }
+        }
+
+        // Process streaming page and playback answers
+        while let Ok(msg) = self.stream_rx.try_recv() {
+            match msg {
+                StreamMsg::Page(list) => {
+                    self.stream_loading = false;
+                    self.stream_list = list;
+                }
+                StreamMsg::Played(res) => {
+                    self.stream_status = match res {
+                        Ok(()) => "Playing".to_string(),
+                        Err(e) => e,
+                    };
+                }
+            }
+        }
+        if self.stream_loading {
+            ctx.request_repaint_after(Duration::from_millis(120));
         }
 
         // Process update check completion
@@ -771,14 +859,14 @@ impl SonixApp {
                         if let Some(ref service_id) = self.active_stream_service.clone() {
                             let q = self.search_query.trim().to_string();
                             if !q.is_empty() {
-                                let client = self.client.clone();
                                 self.stream_stack.push(StreamPage {
                                     service_id: service_id.clone(),
                                     kind: "search".to_string(),
                                     id: String::new(),
                                     title: format!("Search: {}", q),
+                                    query: q.clone(),
                                 });
-                                self.stream_list = client.get_stream_list(&service_id, "search", "", &q);
+                                self.load_stream_page("search".to_string(), String::new(), q);
                             }
                         }
                     }
@@ -1285,10 +1373,19 @@ impl SonixApp {
         if let Some(ref service_id) = self.active_stream_service.clone() {
             let mut back_clicked = false;
             let mut to_play: Option<usize> = None;
+            let mut to_play_container: Option<String> = None;
+            let mut unplayable = false;
             let mut to_open: Option<(String, String, String, String)> = None;
 
-            let header_title = if !self.stream_list.title.is_empty() {
-                format!("{} › {}", service_id.to_uppercase(), self.stream_list.title)
+            // While a page loads, name it from the stack so the previous page's
+            // title does not linger.
+            let page_title = if self.stream_loading {
+                self.stream_stack.last().map(|p| p.title.clone()).unwrap_or_default()
+            } else {
+                self.stream_list.title.clone()
+            };
+            let header_title = if !page_title.is_empty() {
+                format!("{} › {}", service_id.to_uppercase(), page_title)
             } else {
                 format!("Streaming: {}", service_id.to_uppercase())
             };
@@ -1302,9 +1399,8 @@ impl SonixApp {
 
             if back_clicked {
                 if let Some(prev) = self.stream_stack.pop() {
-                    let client = self.client.clone();
-                    let prev_kind = if !prev.kind.is_empty() { prev.kind.as_str() } else { "menu" };
-                    self.stream_list = client.get_stream_list(service_id, prev_kind, &prev.id, "");
+                    let prev_kind = if prev.kind.is_empty() { "menu".to_string() } else { prev.kind };
+                    self.load_stream_page(prev_kind, prev.id, prev.query);
                 } else {
                     self.active_stream_service = None;
                     self.load_view_data();
@@ -1313,7 +1409,29 @@ impl SonixApp {
             }
 
             ui.add_space(8.0);
+
+            if self.stream_loading {
+                ui.add_space(16.0);
+                ui.vertical_centered(|ui| ui.label(egui::RichText::new("Loading...").color(TEXT_MUTED).size(11.5)));
+            } else if !self.stream_status.is_empty() {
+                ui.label(egui::RichText::new(&self.stream_status).color(accent).size(11.0));
+                ui.add_space(4.0);
+            }
+
+            if !self.stream_loading && self.stream_list.rows.is_empty() {
+                let msg = if !self.stream_list.error.is_empty() {
+                    self.stream_list.error.clone()
+                } else {
+                    "Nothing here".to_string()
+                };
+                ui.add_space(16.0);
+                ui.vertical_centered(|ui| ui.label(egui::RichText::new(msg).color(TEXT_MUTED).size(11.0)));
+            }
+
             let row_w = ui.available_width();
+            // The player's menu rows are its own actions: a click opens the exact
+            // page kind they name, not a mapped one.
+            let is_menu_page = self.stream_page_kind == "menu";
             ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                 for (idx, row) in self.stream_list.rows.iter().enumerate() {
                     let (rect, row_resp) = ui.allocate_exact_size(Vec2::new(row_w, 38.0), egui::Sense::click());
@@ -1330,8 +1448,10 @@ impl SonixApp {
 
                     let cy = rect.center().y;
                     let title_color = if is_hov { accent } else { TEXT_PRIMARY };
+                    // Only songs play in place; everything else opens a page.
+                    let is_song = matches!(row.kind.as_str(), "track" | "episode" | "station");
 
-                    if row.playable {
+                    if is_song {
                         // Playable track: clean vector play triangle
                         let px = rect.left() + 14.0;
                         let tri_w = 7.0;
@@ -1381,7 +1501,11 @@ impl SonixApp {
                         }
 
                         if row_resp.clicked() {
-                            to_play = Some(idx);
+                            if row.playable {
+                                to_play = Some(idx);
+                            } else {
+                                unplayable = true;
+                            }
                         }
                     } else {
                         // Category / Container / Menu item
@@ -1420,26 +1544,42 @@ impl SonixApp {
                         );
 
                         if row_resp.clicked() {
-                            let query = if row.kind == "term" { row.album.clone() } else { String::new() };
-                            to_open = Some((row.kind.clone(), row.id.clone(), row.title.clone(), query));
+                            if self.stream_page_kind == "explore" {
+                                // Explore cards are albums and singles: a tap starts
+                                // the album instead of showing a folder of its tracks.
+                                to_play_container = Some(row.id.clone());
+                            } else {
+                                let query = if row.kind == "term" { row.album.clone() } else { String::new() };
+                                let target_kind = if is_menu_page {
+                                    row.kind.clone()
+                                } else {
+                                    Self::stream_open_kind(&row.kind).to_string()
+                                };
+                                to_open = Some((target_kind, row.id.clone(), row.title.clone(), query));
+                            }
                         }
                     }
                 }
             });
 
-            if let Some(idx) = to_play {
-                self.client.stream_play(service_id, idx);
+            if unplayable {
+                self.stream_status = "This item cannot be played".to_string();
             }
-            if let Some((kind, id, title, query)) = to_open {
-                let client = self.client.clone();
+            if let Some(idx) = to_play {
+                self.play_stream_index(idx);
+            }
+            if let Some(id) = to_play_container {
+                self.play_stream_container(id);
+            }
+            if let Some((target_kind, id, title, query)) = to_open {
                 self.stream_stack.push(StreamPage {
                     service_id: service_id.clone(),
-                    kind: kind.clone(),
+                    kind: target_kind.clone(),
                     id: id.clone(),
                     title,
+                    query: query.clone(),
                 });
-                let target_kind = if !kind.is_empty() { &kind } else { "open" };
-                self.stream_list = client.get_stream_list(service_id, target_kind, &id, &query);
+                self.load_stream_page(target_kind, id, query);
             }
         } else {
             // Service List
@@ -1798,7 +1938,14 @@ impl SonixApp {
                     for (i, preset) in presets.iter().enumerate() {
                         let color = preset.color;
                         let is_sel = self.settings.accent_preference == preset.id;
-                        let mut btn = egui::Button::new(egui::RichText::new(preset.name).size(11.0).color(Color32::WHITE))
+                        // Light swatches need dark text or the name vanishes.
+                        let luma = 0.299 * color.r() as f32 + 0.587 * color.g() as f32 + 0.114 * color.b() as f32;
+                        let label_color = if luma > 150.0 {
+                            Color32::from_rgb(18, 20, 26)
+                        } else {
+                            Color32::WHITE
+                        };
+                        let mut btn = egui::Button::new(egui::RichText::new(preset.name).size(11.0).color(label_color))
                             .fill(color)
                             .corner_radius(5.0)
                             .min_size(Vec2::new(95.0, 26.0));
@@ -1909,11 +2056,15 @@ impl SonixApp {
                 }
 
                 ui.add_space(10.0);
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui.add(egui::Button::new("Done").corner_radius(5.0).fill(accent)).clicked() {
-                        self.show_settings = false;
-                    }
-                });
+                ui.allocate_ui_with_layout(
+                    Vec2::new(ui.available_width(), 26.0),
+                    Layout::right_to_left(Align::Center),
+                    |ui| {
+                        if ui.add(egui::Button::new("Done").corner_radius(5.0).fill(accent)).clicked() {
+                            self.show_settings = false;
+                        }
+                    },
+                );
             });
     }
 
@@ -2003,11 +2154,15 @@ impl SonixApp {
                 });
 
                 ui.add_space(10.0);
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui.add(egui::Button::new("Close").corner_radius(5.0)).clicked() {
-                        self.show_dsp = false;
-                    }
-                });
+                ui.allocate_ui_with_layout(
+                    Vec2::new(ui.available_width(), 26.0),
+                    Layout::right_to_left(Align::Center),
+                    |ui| {
+                        if ui.add(egui::Button::new("Close").corner_radius(5.0)).clicked() {
+                            self.show_dsp = false;
+                        }
+                    },
+                );
             });
     }
 
@@ -2073,11 +2228,17 @@ impl SonixApp {
                 }
 
                 ui.add_space(10.0);
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui.add(egui::Button::new("Close").corner_radius(5.0)).clicked() {
-                        self.show_devices = false;
-                    }
-                });
+                // A row of its own: with_layout alone would claim all the space
+                // left in the window and push the button into the middle.
+                ui.allocate_ui_with_layout(
+                    Vec2::new(ui.available_width(), 26.0),
+                    Layout::right_to_left(Align::Center),
+                    |ui| {
+                        if ui.add(egui::Button::new("Close").corner_radius(5.0)).clicked() {
+                            self.show_devices = false;
+                        }
+                    },
+                );
             });
     }
 }

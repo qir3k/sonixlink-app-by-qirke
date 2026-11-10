@@ -128,8 +128,12 @@ pub struct StreamRow {
     pub art: String,
     #[serde(default)]
     pub duration: u32,
-    #[serde(default)]
+    #[serde(default = "default_true")]
     pub playable: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -278,7 +282,11 @@ impl SonixClient {
         link.write_all(request.as_bytes()).map_err(|e| format!("Write error: {}", e))?;
         link.write_all(body).map_err(|e| format!("Write error: {}", e))?;
 
-        Ok(Self::read_response(&mut link))
+        let mut response = Self::read_response(&mut link);
+        if let Some(header_end) = response.windows(4).position(|w| w == b"\r\n\r\n") {
+            response.drain(..header_end + 4);
+        }
+        Ok(response)
     }
 
     pub fn selection(&self, action: &str, paths: &[&str], playlist: &str) {
@@ -391,17 +399,53 @@ impl SonixClient {
             urlencoding(id),
             urlencoding(q)
         );
-        if let Ok(body) = self.raw_http_get(&path, 3000) {
-            if let Ok(list) = serde_json::from_slice::<StreamList>(&body) {
-                return list;
-            }
+        // A service page can take a long while (the player fetches it from the cloud);
+        // callers run this on a worker thread.
+        match self.raw_http_get(&path, 45_000) {
+            Ok(body) => serde_json::from_slice::<StreamList>(&body).unwrap_or_else(|_| StreamList {
+                error: "Unreadable answer from the player".to_string(),
+                ..Default::default()
+            }),
+            Err(e) => StreamList { error: e, ..Default::default() },
         }
-        StreamList::default()
     }
 
-    pub fn stream_play(&self, service: &str, index: usize) {
+    /// Plays entry `index` of the list the player last returned for `service`.
+    /// The player starts a stream, so this is a POST that can take a few seconds.
+    pub fn stream_play(&self, service: &str, index: usize) -> Result<(), String> {
         let path = format!("/api/stream/play?service={}&index={}", urlencoding(service), index);
-        let _ = self.raw_http_get(&path, 1000);
+        let body = self.raw_http_post(&path, &[], 30_000)?;
+        #[derive(Deserialize)]
+        struct Reply {
+            #[serde(default)]
+            ok: bool,
+            #[serde(default)]
+            error: String,
+        }
+        match serde_json::from_slice::<Reply>(&body) {
+            Ok(reply) if !reply.ok => Err(match reply.error.as_str() {
+                // The player dropped the page it was holding, so its index is gone.
+                "stale_list" => "The player lost this page - open it again".to_string(),
+                "" => "Could not play".to_string(),
+                other => other.to_string(),
+            }),
+            _ => Ok(()),
+        }
+    }
+
+    /// Plays a card's first song without opening its page: explore lists albums
+    /// and singles, and a tap there starts the album instead of showing a folder.
+    pub fn stream_play_container(&self, service: &str, id: &str) -> Result<(), String> {
+        let list = self.get_stream_list(service, "open", id, "");
+        if list.rows.is_empty() && !list.error.is_empty() {
+            return Err(list.error);
+        }
+        let first = list
+            .rows
+            .iter()
+            .position(|r| r.kind == "track" || r.kind == "episode")
+            .ok_or_else(|| "Nothing to play here".to_string())?;
+        self.stream_play(service, first)
     }
 
     pub fn get_art(&self, path: &str) -> Option<Vec<u8>> {

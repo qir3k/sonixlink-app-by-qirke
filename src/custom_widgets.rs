@@ -178,9 +178,9 @@ pub fn favourite_button(ui: &mut Ui, is_fav: bool, fav_style: &str, accent: Colo
     };
 
     if fav_style == "star" {
-        // 5-Point Vector Star
-        let outer_r = size * 0.38;
-        let inner_r = outer_r * 0.42;
+        // 5-Point Vector Star, sized to sit like the heart
+        let outer_r = 8.0;
+        let inner_r = outer_r * 0.45;
         let mut points = Vec::with_capacity(10);
         for i in 0..10 {
             let angle = std::f32::consts::PI / 5.0 * (i as f32) - std::f32::consts::PI / 2.0;
@@ -335,26 +335,51 @@ pub fn playback_mode_button(ui: &mut Ui, mode: &str, accent: Color32, size: f32)
             painter.line_segment([Pos2::new(x_right - 3.2, y_top - 2.8), Pos2::new(x_right, y_top)], stroke);
             painter.line_segment([Pos2::new(x_right - 3.2, y_top + 2.8), Pos2::new(x_right, y_top)], stroke);
         }
-        "repeat" | "repeat_all" => {
-            let w = 6.0;
-            let h = 4.5;
-            let rect_box = Rect::from_center_size(center, Vec2::new(w * 2.0, h * 2.0));
-            painter.rect_stroke(rect_box, 3.0, stroke, egui::StrokeKind::Inside);
-            painter.line_segment([Pos2::new(center.x + w - 3.0, center.y - h - 2.5), Pos2::new(center.x + w + 1.5, center.y - h)], stroke);
-            painter.line_segment([Pos2::new(center.x + w - 3.0, center.y - h + 2.5), Pos2::new(center.x + w + 1.5, center.y - h)], stroke);
-        }
-        "repeat_one" => {
-            let w = 6.0;
-            let h = 4.5;
-            let rect_box = Rect::from_center_size(center, Vec2::new(w * 2.0, h * 2.0));
-            painter.rect_stroke(rect_box, 3.0, stroke, egui::StrokeKind::Inside);
-            painter.text(
-                center,
-                egui::Align2::CENTER_CENTER,
-                "1",
-                egui::FontId::proportional(10.0),
+        "repeat" | "repeat_all" | "repeat_one" => {
+            // A rounded loop that flows into an arrowhead on its top edge.
+            let (l, r) = (center.x - 8.0, center.x + 8.0);
+            let (t, b) = (center.y - 4.5, center.y + 4.5);
+            let rad = 2.6;
+            let gap_x = center.x - 1.5;
+            let mut pts = vec![Pos2::new(gap_x + 4.0, t)];
+            let arc = |cx: f32, cy: f32, a0: f32, a1: f32, pts: &mut Vec<Pos2>| {
+                for i in 0..=4 {
+                    let a = a0 + (a1 - a0) * (i as f32 / 4.0);
+                    pts.push(Pos2::new(cx + a.cos() * rad, cy + a.sin() * rad));
+                }
+            };
+            use std::f32::consts::{FRAC_PI_2, PI};
+            pts.push(Pos2::new(r - rad, t));
+            arc(r - rad, t + rad, -FRAC_PI_2, 0.0, &mut pts);
+            pts.push(Pos2::new(r, b - rad));
+            arc(r - rad, b - rad, 0.0, FRAC_PI_2, &mut pts);
+            pts.push(Pos2::new(l + rad, b));
+            arc(l + rad, b - rad, FRAC_PI_2, PI, &mut pts);
+            pts.push(Pos2::new(l, t + rad));
+            arc(l + rad, t + rad, PI, PI + FRAC_PI_2, &mut pts);
+            pts.push(Pos2::new(gap_x, t));
+            painter.add(egui::Shape::line(pts, stroke));
+
+            // Arrowhead closing the loop, pointing right into the gap.
+            painter.add(egui::Shape::convex_polygon(
+                vec![
+                    Pos2::new(gap_x - 0.4, t - 2.6),
+                    Pos2::new(gap_x + 2.4, t),
+                    Pos2::new(gap_x - 0.4, t + 2.6),
+                ],
                 icon_color,
-            );
+                Stroke::NONE,
+            ));
+
+            if mode == "repeat_one" {
+                painter.text(
+                    Pos2::new(center.x + 1.0, center.y + 0.3),
+                    egui::Align2::CENTER_CENTER,
+                    "1",
+                    egui::FontId::proportional(7.5),
+                    icon_color,
+                );
+            }
         }
         _ => {
             let y = center.y;
