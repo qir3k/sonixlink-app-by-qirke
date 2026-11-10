@@ -675,7 +675,7 @@ impl SonixApp {
             });
         });
 
-        // 2. Minimalist Search Field
+        // 2. Minimalist Search Field with Crisp Vector Magnifying Glass
         ui.add_space(6.0);
         Frame::new()
             .fill(BG_CARD)
@@ -684,13 +684,40 @@ impl SonixApp {
             .inner_margin(Vec2::new(10.0, 5.0))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("🔍").size(11.0).color(TEXT_MUTED));
-                    ui.add_space(4.0);
+                    // Crisp vector search magnifying glass (white, matching Play All icon style)
+                    let (icon_rect, _) = ui.allocate_exact_size(Vec2::new(14.0, 14.0), egui::Sense::hover());
+                    let p = ui.painter();
+                    let cx = icon_rect.center().x - 1.5;
+                    let cy = icon_rect.center().y - 1.5;
+                    let r = 4.2;
+                    let icon_color = Color32::from_rgb(220, 225, 235);
+                    p.circle_stroke(egui::pos2(cx, cy), r, Stroke::new(1.3, icon_color));
+                    p.line_segment(
+                        [egui::pos2(cx + 2.8, cy + 2.8), egui::pos2(cx + 6.0, cy + 6.0)],
+                        Stroke::new(1.5, icon_color),
+                    );
+
+                    ui.add_space(6.0);
                     let edit = egui::TextEdit::singleline(&mut self.search_query)
                         .hint_text("Search tracks, artists, albums...")
                         .frame(Frame::NONE)
                         .desired_width(ui.available_width() - 30.0);
-                    ui.add(edit);
+                    let edit_resp = ui.add(edit);
+                    if edit_resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                        if let Some(ref service_id) = self.active_stream_service.clone() {
+                            let q = self.search_query.trim().to_string();
+                            if !q.is_empty() {
+                                let client = self.client.clone();
+                                self.stream_stack.push(StreamPage {
+                                    service_id: service_id.clone(),
+                                    kind: "search".to_string(),
+                                    id: String::new(),
+                                    title: format!("Search: {}", q),
+                                });
+                                self.stream_list = client.get_stream_list(&service_id, "search", "", &q);
+                            }
+                        }
+                    }
                     if !self.search_query.is_empty() {
                         if ui.add(egui::Button::new(egui::RichText::new("✕").size(10.0).color(TEXT_MUTED)).frame(false)).clicked() {
                             self.search_query.clear();
@@ -1049,25 +1076,28 @@ impl SonixApp {
                 }
 
                 row_resp.context_menu(|ui| {
-                    if ui.button("▶ Play Now").clicked() {
+                    ui.spacing_mut().item_spacing = Vec2::new(0.0, 2.0);
+                    if context_menu_item(ui, "Play Now", true, accent).clicked() {
                         play_track = Some(track.path.clone());
                         ui.close();
                     }
-                    if ui.button("Toggle Favourite").clicked() {
-                        self.client.toggle_favorite(&track.path);
-                        ui.close();
-                    }
-                    if ui.button("Queue Next").clicked() {
+                    if context_menu_item(ui, "Queue Next", false, accent).clicked() {
                         queue_track = Some(track.path.clone());
                         ui.close();
                     }
-                    if ui.button("Start Smart Mix").clicked() {
+                    if context_menu_item(ui, "Toggle Favourite", false, accent).clicked() {
+                        self.client.toggle_favorite(&track.path);
+                        ui.close();
+                    }
+                    if context_menu_item(ui, "Start Smart Mix", false, accent).clicked() {
                         smartmix_seed = Some(track.path.clone());
                         ui.close();
                     }
                 });
             }
-        });        if let Some(path) = play_track {
+        });
+
+        if let Some(path) = play_track {
             if let Some((ref cat, ref name)) = self.drilldown_category {
                 if cat == "playlists" {
                     self.client.command("play_path", &[("path", &path), ("list", "playlist"), ("value", name)]);
@@ -1157,52 +1187,161 @@ impl SonixApp {
         if let Some(ref service_id) = self.active_stream_service.clone() {
             let mut back_clicked = false;
             let mut to_play: Option<usize> = None;
-            let mut to_open: Option<String> = None;
+            let mut to_open: Option<(String, String, String, String)> = None;
+
+            let header_title = if !self.stream_list.title.is_empty() {
+                format!("{} › {}", service_id.to_uppercase(), self.stream_list.title)
+            } else {
+                format!("Streaming: {}", service_id.to_uppercase())
+            };
 
             ui.horizontal(|ui| {
                 if ui.add(egui::Button::new("‹ Back").corner_radius(4.0)).clicked() {
                     back_clicked = true;
                 }
-                ui.label(egui::RichText::new(format!("Streaming: {}", service_id.to_uppercase())).size(13.5).strong().color(accent));
+                ui.label(egui::RichText::new(header_title).size(13.5).strong().color(accent));
             });
 
             if back_clicked {
-                self.active_stream_service = None;
-                self.load_view_data();
+                if let Some(prev) = self.stream_stack.pop() {
+                    let client = self.client.clone();
+                    let prev_kind = if !prev.kind.is_empty() { prev.kind.as_str() } else { "menu" };
+                    self.stream_list = client.get_stream_list(service_id, prev_kind, &prev.id, "");
+                } else {
+                    self.active_stream_service = None;
+                    self.load_view_data();
+                }
                 return;
             }
 
             ui.add_space(8.0);
+            let row_w = ui.available_width();
             ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                 for (idx, row) in self.stream_list.rows.iter().enumerate() {
-                    let fill = if idx % 2 == 0 { ROW_EVEN } else { ROW_ODD };
-                    Frame::new().fill(fill).corner_radius(4.0).inner_margin(8.0).show(ui, |ui| {
-                        let resp = ui.horizontal(|ui| {
-                            let icon = if row.playable { "▶" } else { "▪" };
-                            ui.label(egui::RichText::new(icon).color(accent).size(11.0));
-                            ui.label(egui::RichText::new(&row.title).size(12.0).strong().color(TEXT_PRIMARY));
-                            if !row.subtitle.is_empty() {
-                                ui.label(egui::RichText::new(&row.subtitle).size(11.0).color(TEXT_MUTED));
-                            }
-                        });
+                    let (rect, row_resp) = ui.allocate_exact_size(Vec2::new(row_w, 38.0), egui::Sense::click());
+                    let is_hov = row_resp.hovered();
+                    if is_hov {
+                        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                    }
+                    let bg = if is_hov { BG_CARD_HOVER } else if idx % 2 == 0 { ROW_EVEN } else { ROW_ODD };
+                    let p = ui.painter();
+                    p.rect_filled(rect, 4.0, bg);
+                    if is_hov {
+                        p.rect_stroke(rect, 4.0, Stroke::new(1.0, BORDER_LIGHT), egui::StrokeKind::Inside);
+                    }
 
-                        if resp.response.interact(egui::Sense::click()).clicked() {
-                            if row.playable {
-                                to_play = Some(idx);
-                            } else {
-                                to_open = Some(row.id.clone());
+                    let cy = rect.center().y;
+                    let title_color = if is_hov { accent } else { TEXT_PRIMARY };
+
+                    if row.playable {
+                        // Playable track: clean vector play triangle
+                        let px = rect.left() + 14.0;
+                        let tri_w = 7.0;
+                        let tri_h = 8.0;
+                        p.add(egui::Shape::convex_polygon(
+                            vec![
+                                egui::pos2(px, cy - tri_h / 2.0),
+                                egui::pos2(px, cy + tri_h / 2.0),
+                                egui::pos2(px + tri_w, cy),
+                            ],
+                            if is_hov { accent } else { Color32::from_rgb(180, 185, 200) },
+                            Stroke::NONE,
+                        ));
+
+                        let title_x = rect.left() + 28.0;
+                        let title_clip = egui::Rect::from_min_size(egui::pos2(title_x, rect.top()), Vec2::new((row_w * 0.55).max(120.0), rect.height()));
+                        p.with_clip_rect(title_clip).text(
+                            egui::pos2(title_x, cy),
+                            egui::Align2::LEFT_CENTER,
+                            &row.title,
+                            egui::FontId::proportional(12.5),
+                            title_color,
+                        );
+
+                        if !row.subtitle.is_empty() {
+                            let sub_x = (rect.left() + row_w * 0.6).min(rect.right() - 140.0);
+                            if sub_x > title_x + 60.0 {
+                                let sub_clip = egui::Rect::from_min_size(egui::pos2(sub_x, rect.top()), Vec2::new(rect.right() - 60.0 - sub_x, rect.height()));
+                                p.with_clip_rect(sub_clip).text(
+                                    egui::pos2(sub_x, cy),
+                                    egui::Align2::LEFT_CENTER,
+                                    &row.subtitle,
+                                    egui::FontId::proportional(11.0),
+                                    TEXT_MUTED,
+                                );
                             }
                         }
-                    });
+
+                        if row.duration > 0 {
+                            p.text(
+                                egui::pos2(rect.right() - 14.0, cy),
+                                egui::Align2::RIGHT_CENTER,
+                                format_duration(row.duration as u32),
+                                egui::FontId::proportional(11.0),
+                                TEXT_MUTED,
+                            );
+                        }
+
+                        if row_resp.clicked() {
+                            to_play = Some(idx);
+                        }
+                    } else {
+                        // Category / Container / Menu item
+                        p.circle_filled(egui::pos2(rect.left() + 16.0, cy), 2.5, accent);
+
+                        let title_x = rect.left() + 28.0;
+                        let title_clip = egui::Rect::from_min_size(egui::pos2(title_x, rect.top()), Vec2::new((row_w * 0.6).max(120.0), rect.height()));
+                        p.with_clip_rect(title_clip).text(
+                            egui::pos2(title_x, cy),
+                            egui::Align2::LEFT_CENTER,
+                            &row.title,
+                            egui::FontId::proportional(12.5),
+                            title_color,
+                        );
+
+                        if !row.subtitle.is_empty() {
+                            let sub_x = (rect.left() + row_w * 0.6).min(rect.right() - 100.0);
+                            if sub_x > title_x + 60.0 {
+                                let sub_clip = egui::Rect::from_min_size(egui::pos2(sub_x, rect.top()), Vec2::new(rect.right() - 40.0 - sub_x, rect.height()));
+                                p.with_clip_rect(sub_clip).text(
+                                    egui::pos2(sub_x, cy),
+                                    egui::Align2::LEFT_CENTER,
+                                    &row.subtitle,
+                                    egui::FontId::proportional(11.0),
+                                    TEXT_MUTED,
+                                );
+                            }
+                        }
+
+                        p.text(
+                            egui::pos2(rect.right() - 14.0, cy),
+                            egui::Align2::RIGHT_CENTER,
+                            "›",
+                            egui::FontId::proportional(13.5),
+                            TEXT_MUTED,
+                        );
+
+                        if row_resp.clicked() {
+                            let query = if row.kind == "term" { row.album.clone() } else { String::new() };
+                            to_open = Some((row.kind.clone(), row.id.clone(), row.title.clone(), query));
+                        }
+                    }
                 }
             });
 
             if let Some(idx) = to_play {
                 self.client.stream_play(service_id, idx);
             }
-            if let Some(row_id) = to_open {
+            if let Some((kind, id, title, query)) = to_open {
                 let client = self.client.clone();
-                self.stream_list = client.get_stream_list(service_id, "open", &row_id, "");
+                self.stream_stack.push(StreamPage {
+                    service_id: service_id.clone(),
+                    kind: kind.clone(),
+                    id: id.clone(),
+                    title,
+                });
+                let target_kind = if !kind.is_empty() { &kind } else { "open" };
+                self.stream_list = client.get_stream_list(service_id, target_kind, &id, &query);
             }
         } else {
             // Service List
@@ -1212,32 +1351,73 @@ impl SonixApp {
             let mut chosen_service: Option<String> = None;
             for service in &self.stream_services {
                 let service_id = service.id.clone();
-                Frame::new()
-                    .fill(BG_CARD)
-                    .stroke(Stroke::new(1.0, BORDER))
-                    .corner_radius(6.0)
-                    .inner_margin(12.0)
-                    .show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.vertical(|ui| {
-                                ui.label(egui::RichText::new(&service.name).color(TEXT_PRIMARY).size(13.5).strong());
-                                let status_text = if !service.available {
-                                    "Not configured on player"
-                                } else if service.id == "youtube" || service.signed_in {
-                                    "Ready to stream"
-                                } else {
-                                    "Signed out"
-                                };
-                                ui.label(egui::RichText::new(status_text).color(TEXT_MUTED).size(10.0));
-                            });
+                let is_ready = service.id == "youtube" || service.signed_in || service.available;
+                let status_text = if !service.available {
+                    "Not configured on player"
+                } else if service.id == "youtube" || service.signed_in {
+                    "Ready to stream"
+                } else {
+                    "Signed out"
+                };
 
-                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                if ui.add(egui::Button::new("Browse").corner_radius(4.0).fill(accent)).clicked() {
-                                    chosen_service = Some(service_id.clone());
-                                }
-                            });
-                        });
-                    });
+                let card_w = ui.available_width();
+                let (rect, resp) = ui.allocate_exact_size(Vec2::new(card_w, 56.0), egui::Sense::click());
+                let is_hov = resp.hovered();
+                if is_hov {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                }
+
+                let p = ui.painter();
+                let bg = if is_hov { BG_CARD_HOVER } else { BG_CARD };
+                p.rect_filled(rect, 6.0, bg);
+                p.rect_stroke(rect, 6.0, Stroke::new(1.0, if is_hov { BORDER_LIGHT } else { BORDER }), egui::StrokeKind::Inside);
+
+                // Service Name & Status
+                let cy = rect.center().y;
+                let name_color = if is_hov { accent } else { TEXT_PRIMARY };
+                p.text(
+                    egui::pos2(rect.left() + 16.0, cy - 8.0),
+                    egui::Align2::LEFT_CENTER,
+                    &service.name,
+                    egui::FontId::proportional(13.5),
+                    name_color,
+                );
+
+                let dot_color = if is_ready { STATUS_GREEN } else { TEXT_MUTED };
+                p.circle_filled(egui::pos2(rect.left() + 19.0, cy + 10.0), 3.0, dot_color);
+                p.text(
+                    egui::pos2(rect.left() + 28.0, cy + 10.0),
+                    egui::Align2::LEFT_CENTER,
+                    status_text,
+                    egui::FontId::proportional(10.0),
+                    TEXT_MUTED,
+                );
+
+                // Sleek "Browse ›" Pill Button on right
+                let btn_w = 78.0;
+                let btn_h = 26.0;
+                let btn_rect = egui::Rect::from_center_size(
+                    egui::pos2(rect.right() - 50.0, cy),
+                    Vec2::new(btn_w, btn_h),
+                );
+                let btn_bg = if is_hov { accent } else { Color32::from_rgb(34, 38, 48) };
+                let btn_stroke = if is_hov { Stroke::NONE } else { Stroke::new(1.0, Color32::from_rgb(50, 55, 70)) };
+                p.rect_filled(btn_rect, 13.0, btn_bg);
+                if btn_stroke.width > 0.0 {
+                    p.rect_stroke(btn_rect, 13.0, btn_stroke, egui::StrokeKind::Inside);
+                }
+                p.text(
+                    btn_rect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    "Browse ›",
+                    egui::FontId::proportional(11.0),
+                    if is_hov { Color32::WHITE } else { Color32::from_rgb(220, 225, 235) },
+                );
+
+                if resp.clicked() {
+                    chosen_service = Some(service_id.clone());
+                }
+
                 ui.add_space(6.0);
             }
 
@@ -1279,11 +1459,17 @@ impl SonixApp {
 
                 ui.add_space(4.0);
 
-                // 3. Compact Row: Audio Badge & Smart Mix button (Horizontally Centered)
+                // 3. Compact Row: Audio Badge & Smart Mix button (Accurately Centered)
+                let badge_font = egui::FontId::proportional(8.5);
+                let badge_text_w = if !badge.is_empty() {
+                    ui.painter().layout_no_wrap(badge.clone(), badge_font.clone(), accent).size().x
+                } else {
+                    0.0
+                };
+                let badge_frame_w = if !badge.is_empty() { badge_text_w + 14.0 } else { 0.0 };
                 let smartmix_w = 78.0;
-                let badge_w = if !badge.is_empty() { 68.0 } else { 0.0 };
-                let row3_gap = if !badge.is_empty() { 6.0 } else { 0.0 };
-                let total_row3 = badge_w + row3_gap + smartmix_w;
+                let row3_gap = if badge_frame_w > 0.0 { 6.0 } else { 0.0 };
+                let total_row3 = badge_frame_w + row3_gap + smartmix_w;
                 let pad3 = ((ui.available_width() - total_row3) / 2.0).max(0.0);
 
                 ui.horizontal(|ui| {

@@ -583,3 +583,35 @@ pub fn dsp_pill_button(
 
     response
 }
+
+pub fn context_menu_item(ui: &mut Ui, label: &str, is_accent: bool, accent: Color32) -> Response {
+    let w = ui.available_width().max(148.0);
+    let (rect, resp) = ui.allocate_exact_size(Vec2::new(w, 27.0), Sense::click());
+    let is_hov = resp.hovered();
+    let is_down = resp.is_pointer_button_down_on();
+    let p = ui.painter();
+
+    if is_down {
+        p.rect_filled(rect, 4.0, Color32::from_rgb(45, 50, 65));
+    } else if is_hov {
+        p.rect_filled(rect, 4.0, Color32::from_rgb(32, 35, 46));
+    }
+
+    let text_color = if is_hov && is_accent {
+        accent
+    } else if is_hov {
+        Color32::WHITE
+    } else {
+        Color32::from_rgb(215, 220, 230)
+    };
+
+    p.text(
+        Pos2::new(rect.left() + 10.0, rect.center().y),
+        egui::Align2::LEFT_CENTER,
+        label,
+        egui::FontId::proportional(12.0),
+        text_color,
+    );
+
+    resp
+}

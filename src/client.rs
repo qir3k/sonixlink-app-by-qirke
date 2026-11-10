@@ -126,6 +126,8 @@ pub struct StreamRow {
     #[serde(default)]
     pub art: String,
     #[serde(default)]
+    pub duration: u32,
+    #[serde(default)]
     pub playable: bool,
 }
 
