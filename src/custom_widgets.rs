@@ -394,7 +394,9 @@ pub fn header_pill_button(ui: &mut Ui, symbol: &str, label: &str, is_accent: boo
     let galley = ui.painter().layout_no_wrap(label.to_string(), font_id.clone(), Color32::WHITE);
     let is_play = symbol == "▶" || symbol == "play";
     let is_shuffle = symbol == "⇄" || symbol == "shuffle";
-    let has_icon = is_play || is_shuffle;
+    let is_plus = symbol == "+" || symbol == "＋" || symbol == "plus";
+    let is_refresh = symbol == "⟳" || symbol == "refresh" || symbol == "remix";
+    let has_icon = is_play || is_shuffle || is_plus || is_refresh;
     let icon_w = if has_icon { 11.0 } else { 0.0 };
     let gap = if has_icon { 6.0 } else { 0.0 };
     let btn_w = (galley.size().x + icon_w + gap + 26.0).max(72.0);
@@ -458,6 +460,16 @@ pub fn header_pill_button(ui: &mut Ui, symbol: &str, label: &str, is_accent: boo
         painter.line_segment([Pos2::new(sx + 7.5, cy + 2.5), Pos2::new(sx + 0.5, cy + 2.5)], Stroke::new(1.3, text_color));
         painter.line_segment([Pos2::new(sx + 2.5, cy + 0.5), Pos2::new(sx, cy + 2.5)], Stroke::new(1.3, text_color));
         painter.line_segment([Pos2::new(sx + 2.5, cy + 4.5), Pos2::new(sx, cy + 2.5)], Stroke::new(1.3, text_color));
+    } else if is_plus {
+        let sx = start_x + 4.5;
+        painter.line_segment([Pos2::new(sx, cy - 4.5), Pos2::new(sx, cy + 4.5)], Stroke::new(1.4, text_color));
+        painter.line_segment([Pos2::new(sx - 4.5, cy), Pos2::new(sx + 4.5, cy)], Stroke::new(1.4, text_color));
+    } else if is_refresh {
+        let sx = start_x + 4.5;
+        let r = 4.0;
+        painter.circle_stroke(Pos2::new(sx, cy), r, Stroke::new(1.3, text_color));
+        painter.line_segment([Pos2::new(sx + r - 2.5, cy - r - 1.5), Pos2::new(sx + r, cy - r)], Stroke::new(1.3, text_color));
+        painter.line_segment([Pos2::new(sx + r + 2.5, cy - r - 1.5), Pos2::new(sx + r, cy - r)], Stroke::new(1.3, text_color));
     }
 
     let text_x = if has_icon { start_x + icon_w + gap } else { start_x };

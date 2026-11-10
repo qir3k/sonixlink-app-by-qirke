@@ -426,7 +426,7 @@ impl SonixApp {
 
                         if let Some(ref s) = self.current_state {
                             if s.battery >= 0 {
-                                let charge_txt = if s.charging { format!("{}% ⚡", s.battery) } else { format!("{}%", s.battery) };
+                                let charge_txt = if s.charging { format!("{}% [CHG]", s.battery) } else { format!("{}%", s.battery) };
                                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                                     ui.label(egui::RichText::new(charge_txt).color(TEXT_SECONDARY).size(10.0));
                                 });
@@ -564,7 +564,7 @@ impl SonixApp {
 
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     ui.spacing_mut().item_spacing = Vec2::new(8.0, 0.0);
-                    if header_pill_button(ui, "▶", "Play All", true, accent).clicked() {
+                    if header_pill_button(ui, "play", "Play All", true, accent).clicked() {
                         if let Some(first) = self.tracks.first() {
                             if cat == "playlists" {
                                 self.client.command("play_path", &[("path", &first.path), ("list", "playlist"), ("value", name)]);
@@ -573,7 +573,7 @@ impl SonixApp {
                             }
                         }
                     }
-                    if header_pill_button(ui, "⇄", "Shuffle", false, accent).clicked() {
+                    if header_pill_button(ui, "shuffle", "Shuffle", false, accent).clicked() {
                         self.client.command("mode", &[("value", "shuffle")]);
                         if let Some(first) = self.tracks.first() {
                             if cat == "playlists" {
@@ -649,25 +649,25 @@ impl SonixApp {
 
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.spacing_mut().item_spacing = Vec2::new(8.0, 0.0);
-                if header_pill_button(ui, "▶", if self.current_nav == "smartmix" { "Play Mix" } else { "Play All" }, true, accent).clicked() {
+                if header_pill_button(ui, "play", if self.current_nav == "smartmix" { "Play Mix" } else { "Play All" }, true, accent).clicked() {
                     if let Some(first) = self.tracks.first() {
                         self.client.command("play_path", &[("path", &first.path)]);
                     }
                 }
-                if header_pill_button(ui, "⇄", "Shuffle", false, accent).clicked() {
+                if header_pill_button(ui, "shuffle", "Shuffle", false, accent).clicked() {
                     self.client.command("mode", &[("value", "shuffle")]);
                     if let Some(first) = self.tracks.first() {
                         self.client.command("play_path", &[("path", &first.path)]);
                     }
                 }
                 if self.current_nav == "smartmix" {
-                    if header_pill_button(ui, "＋", "Save Playlist", false, accent).clicked() {
+                    if header_pill_button(ui, "plus", "Save Playlist", false, accent).clicked() {
                         let paths: Vec<&str> = self.tracks.iter().map(|t| t.path.as_str()).collect();
                         let seed_title = self.tracks.first().map(|t| t.title.as_str()).unwrap_or("Mix");
                         let pl_name = format!("Smart Mix - {}", seed_title);
                         self.client.save_playlist(&pl_name, &paths);
                     }
-                    if header_pill_button(ui, "⟳", "Re-mix", false, accent).clicked() {
+                    if header_pill_button(ui, "refresh", "Re-mix", false, accent).clicked() {
                         let seed = self.current_state.as_ref().map(|s| s.path.as_str()).unwrap_or("");
                         self.tracks = self.db.generate_smartmix(seed);
                     }
@@ -1006,21 +1006,42 @@ impl SonixApp {
                 let album_color = if is_hovered { Color32::from_rgb(175, 178, 190) } else { TEXT_MUTED };
                 let time_color = if is_hovered { Color32::from_rgb(190, 195, 205) } else { TEXT_MUTED };
 
-                // 3. Draw Column 1: # or Play symbol
-                let num_str = if is_current {
-                    "▶".to_string()
-                } else if track.track_num > 0 {
-                    format!("{:02}", track.track_num)
+                // 3. Draw Column 1: Modern Equalizer Bars / Track Number
+                let cx = rect.left() + x_num + w_num / 2.0;
+                if is_current {
+                    let is_playing = self.current_state.as_ref().map(|s| s.is_playing()).unwrap_or(false);
+                    if is_playing {
+                        // Modern 3-bar audio equalizer bars in accent color (Spotify / Apple Music style)
+                        let bar_w = 2.4;
+                        let b1 = egui::Rect::from_center_size(egui::pos2(cx - 3.6, row_cy), Vec2::new(bar_w, 8.0));
+                        let b2 = egui::Rect::from_center_size(egui::pos2(cx, row_cy), Vec2::new(bar_w, 13.0));
+                        let b3 = egui::Rect::from_center_size(egui::pos2(cx + 3.6, row_cy), Vec2::new(bar_w, 6.0));
+                        painter.rect_filled(b1, 1.0, accent);
+                        painter.rect_filled(b2, 1.0, accent);
+                        painter.rect_filled(b3, 1.0, accent);
+                    } else {
+                        // Crisp vector play triangle in accent color (paused state)
+                        let tri_w = 7.0;
+                        let tri_h = 9.0;
+                        let p1 = egui::pos2(cx - 3.0, row_cy - tri_h / 2.0);
+                        let p2 = egui::pos2(cx - 3.0, row_cy + tri_h / 2.0);
+                        let p3 = egui::pos2(cx - 3.0 + tri_w, row_cy);
+                        painter.add(egui::Shape::convex_polygon(vec![p1, p2, p3], accent, Stroke::NONE));
+                    }
                 } else {
-                    format!("{:02}", idx + 1)
-                };
-                painter.text(
-                    egui::pos2(rect.left() + x_num + w_num / 2.0, row_cy),
-                    egui::Align2::CENTER_CENTER,
-                    num_str,
-                    egui::FontId::proportional(11.0),
-                    num_color,
-                );
+                    let num_str = if track.track_num > 0 {
+                        format!("{:02}", track.track_num)
+                    } else {
+                        format!("{:02}", idx + 1)
+                    };
+                    painter.text(
+                        egui::pos2(cx, row_cy),
+                        egui::Align2::CENTER_CENTER,
+                        num_str,
+                        egui::FontId::proportional(11.0),
+                        num_color,
+                    );
+                }
 
                 // 4. Draw Column 2: Title (with clipping)
                 let title_pos_x = rect.left() + x_title + 4.0;
